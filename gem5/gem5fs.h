@@ -39,8 +39,8 @@
  */
 
 
-#ifndef __GEM5FS_GEM5_GEM5FS_HH__ 
-#define __GEM5FS_GEM5_GEM5FS_HH__ 
+#ifndef __GEM5FS_GEM5_GEM5FS_H__ 
+#define __GEM5FS_GEM5_GEM5FS_H__ 
 
 typedef enum 
 {
