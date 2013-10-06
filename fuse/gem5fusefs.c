@@ -101,6 +101,8 @@ int gem5fs_getattr(const char *path, struct stat *statbuf)
     /* Get the path on the host. */
     gem5fs_fullpath(fpath, path);
 
+    printf("gem5fs_getattr called on %s (%s)\n", path, fpath);
+
     /* Build the file operation struct. */
     request.oper = GetAttr;
     request.opType = RequestOperation;
@@ -136,15 +138,37 @@ int gem5fs_getattr(const char *path, struct stat *statbuf)
     request.opStruct = (uint8_t*)malloc(response.structSize);
     request.structSize = response.structSize;
     request.result = response.result;
+
+    /*
+     *  I suspect that the malloc function is lazy and just 
+     *  returns a pointer to a free region of memory and doesn't
+     *  actually do things like update the pagetable, etc. For 
+     *  some directories with more than a dozen files, the gem5
+     *  translation fails. Here i'm using memset to zero out
+     *  the data, which in turn accesses it and the pagetable is
+     *  updated* preventing a fault in gem5
+     *
+     *  * = Partially conjecture.
+     */
+    memset(request.opStruct, 0, response.structSize);
+
+    memset(request.opStruct, 0, response.structSize);
+
+    printf("gem5fs_getattr allocated %d byte buffer at %p\n", response.structSize, request.opStruct);
     
     /* Get the result and place it in request.opStruct. */
     m5_gem5fs_call((void*)&request, (void*)request.opStruct);
+
+    printf("gem5fs_getattr returned %d bytes of data.\n", response.structSize); 
 
     /*
      *  The result's struct contains the stat struct from
      *  the host system, copy this to FUSE's statbuf.
      */
     memcpy(statbuf, request.opStruct, request.structSize);
+
+    /* We're done with this memory. */
+    free(request.opStruct);
 
     return 0; 
 }
@@ -371,9 +395,14 @@ int gem5fs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t of
     struct FileOperation response;
     char fpath[PATH_MAX];
     int entry_count, entry;
-    struct dirent *all_entries;
+    //struct dirent *all_entries, *cur_entry;
+    char *all_entries, *cur_entry;
 
+    /* Get the path on the host. */
     gem5fs_fullpath(fpath, path);
+
+    printf("gem5fs_readdir called on %s (%s) with buffer %p and offset %d\n", path, fpath, buf, offset);
+    printf("gem5fs_readdir sizeof dirent struct is %d\n", sizeof(struct dirent));
 
     /* Build the file operation struct. */
     request.oper = ReadDir;
@@ -383,6 +412,7 @@ int gem5fs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t of
     request.opStruct = NULL;
     request.structSize = 0;
 
+    /* Call readdir recursively on host. */
     m5_gem5fs_call((void*)&request, (void*)&response);
 
     /* Check the result. */
@@ -391,6 +421,17 @@ int gem5fs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t of
         return gem5fs_error(__func__, response.errnum);
     }
 
+    /* 
+     *  Request was successful, but we need to allocate space
+     *  in the FUSE filesystem's memory space in to which the 
+     *  pseudo op will copy. 
+     *
+     *  request.result has the pointer to the FileOperation
+     *  in gem5's memory space, so we need to send this.
+     *
+     *  structSize will tell us how much space we need to 
+     *  allocate to get the result. 
+     */
     request.oper = GetResult;
     request.opType = RequestOperation;
     request.path = fpath;
@@ -399,7 +440,25 @@ int gem5fs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t of
     request.structSize = response.structSize;
     request.result = response.result;
 
+    /*
+     *  I suspect that the malloc function is lazy and just 
+     *  returns a pointer to a free region of memory and doesn't
+     *  actually do things like update the pagetable, etc. For 
+     *  some directories with more than a dozen files, the gem5
+     *  translation fails. Here i'm using memset to zero out
+     *  the data, which in turn accesses it and the pagetable is
+     *  updated* preventing a fault in gem5
+     *
+     *  * = Partially conjecture.
+     */
+    memset(request.opStruct, 0, response.structSize);
+
+    printf("gem5fs_readdir allocated %d byte buffer at %p\n", response.structSize, request.opStruct);
+    
+    /* Get the result and place it in request.opStruct. */
     m5_gem5fs_call((void*)&request, (void*)request.opStruct);
+
+    printf("gem5fs_readdir returned %d bytes of data.\n", response.structSize); 
 
     /*
      *  The struct is a pack sequence of dirent structs. We
@@ -407,18 +466,26 @@ int gem5fs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t of
      *  size of one struct, and use pointer addition to get
      *  each individual dirent struct.
      */
-    entry_count = response.structSize / sizeof(struct dirent);
-    all_entries = (struct dirent *)request.opStruct;
+    entry_count = response.structSize / 256;
+    all_entries = (char *)request.opStruct;
+    cur_entry = all_entries;
+
+    printf("gem5fs_readdir found %d directories.\n", entry_count);
 
     for (entry = 0; entry < entry_count; ++entry)
     {
-        if (filler(buf, all_entries->d_name, NULL, 0) != 0)
-        {
-            return gem5fs_error(__func__, ENOMEM);
-        }
+        char d_name[256];
+        memcpy(d_name, cur_entry, 256);
+        printf("gem5fs_readdir filling directory %s\n", d_name);
 
-        all_entries += sizeof(struct dirent);
+        if (filler(buf, d_name, NULL, 0) != 0)
+            return gem5fs_error(__func__, ENOMEM);
+
+        cur_entry += 256;
     }
+
+    /* We're done with this memory. */
+    free(request.opStruct);
 
     /* Return 0 on success */
     return 0; 
@@ -591,7 +658,7 @@ int main(int argc, char *argv[])
     /*
      *  Usage is gem5fs <path> 
      */
-    if(argc != 2)
+    if(argc < 2)
     	gem5fs_usage();
 
     gem5fs_data = malloc(sizeof(struct gem5fs_state));
