@@ -42,6 +42,31 @@
 #ifndef __GEM5FS_GEM5_GEM5FS_H__ 
 #define __GEM5FS_GEM5_GEM5FS_H__ 
 
+/*  
+ *  All the includes we need for the supported file operations
+ *  _should_ be here.
+ */
+#include <ctype.h>
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <libgen.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/xattr.h>
+
+
+#ifdef __cplusplus
+namespace gem5fs {
+#endif
+
+
 typedef enum 
 {
     ErrorCode,
@@ -77,7 +102,8 @@ typedef enum
     Create,
     Ftruncate,
     FGetAttr,
-    Lock
+    Lock,
+    GetResult
 } Operation;
 
 typedef enum 
@@ -87,19 +113,24 @@ typedef enum
     ResponseOperation
 } OperationType;
 
-
 struct FileOperation 
 {
-    Operation oper; // The file operation
-    OperationType opType; // Direction of operation data
+    Operation oper;                // The file operation
+    OperationType opType;          // Direction of operation data
 
-    char *path; // Path to the file/directory
-    unsigned int pathLength; // Length of the path name
+    char *path;                    // Path to the file/directory
+    unsigned int pathLength;       // Length of the path name
 
-    void *opStruct; // Pointer to structures needed for a file operation
-    unsigned int structSize; // Length in bytes of opStruct data
+    uint8_t *opStruct;             // Pointer to structures needed for a file operation
+    unsigned int structSize;       // Length in bytes of opStruct data
 
+    struct FileOperation *result;  // Pointer to the response 
+    int errnum;                    // Copy of errno from host
 };
+
+#ifdef __cplusplus
+}; // namespace gem5fs
+#endif
 
 #endif // __GEM5FS_GEM5_GEM5FS_HH__
 
