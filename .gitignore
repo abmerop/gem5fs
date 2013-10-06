@@ -1,0 +1,4 @@
+*.swp
+build/**
+gem5fs
+.sconsign.*
