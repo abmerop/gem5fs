@@ -62,6 +62,15 @@
 #include <sys/xattr.h>
 
 
+/* Headers needed for gem5 types. */
+#ifdef __cplusplus
+
+#include "cpu/thread_context.hh"
+#include "base/types.hh"
+
+#endif
+
+
 #ifdef __cplusplus
 namespace gem5fs {
 #endif
@@ -127,6 +136,11 @@ struct FileOperation
     struct FileOperation *result;  // Pointer to the response 
     int errnum;                    // Copy of errno from host
 };
+
+/* This prototype is only needed by gem5, not by FUSE. */
+#ifdef __cplusplus
+uint64_t ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestAddr, Addr resultAddr);
+#endif
 
 #ifdef __cplusplus
 }; // namespace gem5fs
