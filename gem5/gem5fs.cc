@@ -38,11 +38,14 @@
  * Authors: Matt Poremba
  */
 
-#include "gem5fs.h"
+#include "gem5fs/gem5/gem5fs.h"
+
+#include "cpu/thread_context.hh"
+#include "mem/fs_translating_port_proxy.hh"
 
 using namespace gem5fs;
 
-uint64_t ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestAddr, Addr resultAddr)
+uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestAddr, Addr resultAddr)
 {
     uint64_t result = 0;
 
@@ -243,7 +246,7 @@ uint64_t ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestAddr, Add
         {
             /* mkdir requires input data. */
             mode_t dirMode;
-            CopyOut(tc, inputAddr, &dirMode, sizeof(mode_t));
+            CopyOut(tc, &dirMode, inputAddr, sizeof(mode_t));
 
             /* Call mkdir */ 
             int rv = ::mkdir(pathname, dirMode);

@@ -65,8 +65,9 @@
 /* Headers needed for gem5 types. */
 #ifdef __cplusplus
 
-#include "cpu/thread_context.hh"
 #include "base/types.hh"
+
+class ThreadContext;
 
 #endif
 
