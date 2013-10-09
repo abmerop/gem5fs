@@ -1,0 +1,96 @@
+# HG changeset patch
+# Parent ba29d2d6730afe720fdfdf2c27a50c394d37cdee
+
+diff -r ba29d2d6730a src/arch/x86/isa/decoder/two_byte_opcodes.isa
+--- a/src/arch/x86/isa/decoder/two_byte_opcodes.isa	Thu Oct 03 14:12:40 2013 -0400
++++ b/src/arch/x86/isa/decoder/two_byte_opcodes.isa	Wed Oct 09 18:45:15 2013 -0400
+@@ -204,8 +204,11 @@
+                         0x57: m5reserved3({{
+                             warn("M5 reserved opcode 3 ignored.\n");
+                         }}, IsNonSpeculative);
+-                        0x58: m5reserved4({{
+-                            warn("M5 reserved opcode 4 ignored.\n");
++                        //0x58: m5reserved4({{
++                        //    warn("M5 reserved opcode 4 ignored.\n");
++                        //}}, IsNonSpeculative);
++                        0x58: m5_gem5fs_call({{
++                            PseudoInst::gem5fs_call(xc->tcBase(), Rdi, Rsi, Rdx);
+                         }}, IsNonSpeculative);
+                         0x59: m5reserved5({{
+                             warn("M5 reserved opcode 5 ignored.\n");
+diff -r ba29d2d6730a src/sim/pseudo_inst.cc
+--- a/src/sim/pseudo_inst.cc	Thu Oct 03 14:12:40 2013 -0400
++++ b/src/sim/pseudo_inst.cc	Wed Oct 09 18:45:15 2013 -0400
+@@ -73,6 +73,8 @@
+ #include "sim/system.hh"
+ #include "sim/vptr.hh"
+ 
++#include "gem5fs/gem5/gem5fs.h"
++
+ using namespace std;
+ 
+ using namespace Stats;
+@@ -497,6 +499,17 @@
+ }
+ 
+ uint64_t
++gem5fs_call(ThreadContext *tc, Addr inputAddr, Addr requestAddr, Addr resultAddr)
++{
++    if (!FullSystem) {
++        panicFsOnlyPseudoInst("gem5fs_call");
++        return 0;
++    }
++
++    return gem5fs::ProcessRequest(tc, inputAddr, requestAddr, resultAddr);
++}
++
++uint64_t
+ readfile(ThreadContext *tc, Addr vaddr, uint64_t len, uint64_t offset)
+ {
+     DPRINTF(PseudoInst, "PseudoInst::readfile(0x%x, 0x%x, 0x%x)\n",
+diff -r ba29d2d6730a src/sim/pseudo_inst.hh
+--- a/src/sim/pseudo_inst.hh	Thu Oct 03 14:12:40 2013 -0400
++++ b/src/sim/pseudo_inst.hh	Wed Oct 09 18:45:15 2013 -0400
+@@ -71,6 +71,7 @@
+ uint64_t quiesceTime(ThreadContext *tc);
+ uint64_t readfile(ThreadContext *tc, Addr vaddr, uint64_t len,
+     uint64_t offset);
++uint64_t gem5fs_call(ThreadContext *tc, Addr pathAddr, Addr requestAddr, Addr resultAddr);
+ uint64_t writefile(ThreadContext *tc, Addr vaddr, uint64_t len,
+     uint64_t offset, Addr filenameAddr);
+ void loadsymbol(ThreadContext *xc);
+diff -r ba29d2d6730a util/m5/m5op.h
+--- a/util/m5/m5op.h	Thu Oct 03 14:12:40 2013 -0400
++++ b/util/m5/m5op.h	Wed Oct 09 18:45:15 2013 -0400
+@@ -54,6 +54,7 @@
+ void m5_dump_stats(uint64_t ns_delay, uint64_t ns_period);
+ void m5_dumpreset_stats(uint64_t ns_delay, uint64_t ns_period);
+ uint64_t m5_readfile(void *buffer, uint64_t len, uint64_t offset);
++uint64_t m5_gem5fs_call(void *input_data, void *request, void *response);
+ uint64_t m5_writefile(void *buffer, uint64_t len, uint64_t offset, const char *filename);
+ void m5_debugbreak(void);
+ void m5_switchcpu(void);
+diff -r ba29d2d6730a util/m5/m5op_x86.S
+--- a/util/m5/m5op_x86.S	Thu Oct 03 14:12:40 2013 -0400
++++ b/util/m5/m5op_x86.S	Wed Oct 09 18:45:15 2013 -0400
+@@ -77,6 +77,7 @@
+ TWO_BYTE_OP(m5_checkpoint, ckpt_func)
+ TWO_BYTE_OP(m5_readfile, readfile_func)
+ TWO_BYTE_OP(m5_writefile, writefile_func)
++TWO_BYTE_OP(m5_gem5fs_call, gem5fs_call_func)
+ TWO_BYTE_OP(m5_debugbreak, debugbreak_func)
+ TWO_BYTE_OP(m5_switchcpu, switchcpu_func)
+ TWO_BYTE_OP(m5_addsymbol, addsymbol_func)
+diff -r ba29d2d6730a util/m5/m5ops.h
+--- a/util/m5/m5ops.h	Thu Oct 03 14:12:40 2013 -0400
++++ b/util/m5/m5ops.h	Wed Oct 09 18:45:15 2013 -0400
+@@ -56,7 +56,8 @@
+ 
+ #define reserved2_func          0x56 // Reserved for user
+ #define reserved3_func          0x57 // Reserved for user
+-#define reserved4_func          0x58 // Reserved for user
++//#define reserved4_func          0x58 // Reserved for user
++#define gem5fs_call_func           0x58
+ #define reserved5_func          0x59 // Reserved for user
+ 
+ #define work_begin_func          0x5a
