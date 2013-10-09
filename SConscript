@@ -44,7 +44,7 @@ Import('*')
 #
 #  List of sources to build with gem5
 #
-Source('gem5/gem5fs.c')
+Source('gem5/gem5fs.cc')
 
 #
 #  List of the FUSE filesystem sources
