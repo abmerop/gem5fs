@@ -99,6 +99,7 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
 
             std::cout << "gem5fs_call: GetResult: bufferOp->opStruct is " << (void*)(resultOp->opStruct) << std::endl;
             std::cout << "gem5fs_call: GetResult: bufferOp is " << (void*)(resultOp) << std::endl;
+            std::cout << "gem5fs_call: writing " << resultOp->structSize << " bytes to " << std::hex << resultAddr << std::dec << std::endl;
 
             /*
              *  The fuse filesystem allocates enough memory in opStruct
@@ -136,7 +137,7 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
                 }
                 else if(resultOp->oper == ReadDir)
                 {
-                    struct dirent *all_entries = (struct dirent *)resultOp->opStruct;
+                    char *all_entries = (char *)resultOp->opStruct;
                     delete all_entries;
                 }
             }
@@ -187,6 +188,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             int *fd = new int;
 
             *fd = open(pathname, flags);
+
+            std::cout << "gem5fs_Open: fd is " << (*fd) << std::endl;
             
             /* Save the response data for GetResult. */
             BufferResponse(tc, resultAddr, &fileOp, (*fd >= 0), (uint8_t*)fd, sizeof(int));
@@ -202,8 +205,29 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             uint8_t *tmpBuf = new uint8_t[dataOp.size];
             ssize_t rv = pread(dataOp.hostfd, tmpBuf, dataOp.size, dataOp.offset);
 
+            std::cout << "gem5fs_read read " << tmpBuf << std::endl;
+
             /* Save the response data for GetResult. */
-            BufferResponse(tc, resultAddr, &fileOp, (rv >= 0), tmpBuf, dataOp.size);
+            BufferResponse(tc, resultAddr, &fileOp, (rv >= 0), tmpBuf, rv);
+
+            break;
+        }
+        case Write:
+        {
+            /* FUSE FS sends a DataOperation struct as input. */
+            DataOperation dataOp;
+            CopyOut(tc, &dataOp, inputAddr, fileOp.structSize);
+
+            char *tmpBuf = new char[dataOp.size];
+            CopyOut(tc, tmpBuf, (Addr)dataOp.data, dataOp.size);
+
+            std::cout << "Writing '" << tmpBuf << " (" << dataOp.size << ") bytes to fd "
+                      << dataOp.hostfd << std::endl;
+
+            ssize_t rv = pwrite(dataOp.hostfd, tmpBuf, dataOp.size, dataOp.offset);
+
+            /* Send the response. */
+            BufferResponse(tc, resultAddr, &fileOp, (rv >= 0), (uint8_t*)&rv, sizeof(ssize_t));
 
             break;
         }
@@ -211,7 +235,7 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
         {
             /* FUSE FS sends the file descriptor as input. */
             int fd;
-            CopyOut(tc, &flags, inputAddr, fileOp.structSize);
+            CopyOut(tc, &fd, inputAddr, fileOp.structSize);
 
             int rv = close(fd);
             
@@ -259,7 +283,7 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
              *  Allocate enough buffer space for the data to be returned.
              */
             size_t entry_buffer_size = 256 * entries.size();
-            char *all_entries = (char*)malloc(entry_buffer_size);
+            char *all_entries = new char[entry_buffer_size];
             char *cur_entry = all_entries;
 
             for(auto iter = entries.begin(); iter != entries.end(); ++iter)

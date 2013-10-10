@@ -203,11 +203,16 @@ int gem5fs_readlink(const char *path, char *link, size_t size)
     int rv;
     char *buf;
     unsigned int bufsiz;
+    size_t modsize;
+    char *mountpoint = ((struct gem5fs_state *)fuse_get_context()->private_data)->rootdir;
+
+    modsize = size - strlen(mountpoint);
 
     /* Just pass in the size of the buffer. */
-    if ((rv = gem5fs_syscall(ReadLink, path, (void*)size, sizeof(size_t), (uint8_t**)&buf, &bufsiz)) == 0)
+    if ((rv = gem5fs_syscall(ReadLink, path, (void*)&modsize, sizeof(size_t), (uint8_t**)&buf, &bufsiz)) == 0)
     {
-        memcpy(link, buf, bufsiz);
+        strcpy(link, mountpoint);
+        strcat(link, buf);
         free(buf);
     }
 
@@ -218,6 +223,8 @@ int gem5fs_readlink(const char *path, char *link, size_t size)
 int gem5fs_mknod(const char *path, mode_t mode, dev_t dev)
 {
     int rv = 0;
+
+    printf("%s called\n", __func__);
 
     return rv; 
 }
@@ -233,6 +240,8 @@ int gem5fs_unlink(const char *path)
 {
     int rv = 0;
 
+    printf("%s called\n", __func__);
+
     return rv; 
 }
 
@@ -247,6 +256,8 @@ int gem5fs_symlink(const char *path, const char *link)
 {
     int rv = 0;
 
+    printf("%s called\n", __func__);
+
     return rv; 
 }
 
@@ -255,6 +266,8 @@ int gem5fs_rename(const char *path, const char *newpath)
 {
     int rv = 0;
 
+    printf("%s called\n", __func__);
+
     return rv; 
 }
 
@@ -262,6 +275,8 @@ int gem5fs_rename(const char *path, const char *newpath)
 int gem5fs_link(const char *path, const char *newpath)
 {
     int rv = 0;
+
+    printf("%s called\n", __func__);
 
     return rv; 
 }
@@ -277,6 +292,8 @@ int gem5fs_chown(const char *path, uid_t uid, gid_t gid)
 {
     int rv = 0;
 
+    printf("%s called\n", __func__);
+
     return rv; 
 }
 
@@ -285,6 +302,8 @@ int gem5fs_truncate(const char *path, off_t newsize)
 {
     int rv = 0;
 
+    printf("%s called\n", __func__);
+
     return rv; 
 }
 
@@ -292,6 +311,8 @@ int gem5fs_truncate(const char *path, off_t newsize)
 int gem5fs_utimens(const char *path, const struct timespec tv[2])
 {
     int rv = 0;
+
+    printf("%s called\n", __func__);
 
     return rv; 
 }
@@ -302,8 +323,9 @@ int gem5fs_open(const char *path, struct fuse_file_info *fi)
     int rv;
     int *hostfd;
 
-    if ((rv = gem5fs_syscall(Open, path, (void*)(fi->flags), sizeof(int), (uint8_t**)&hostfd, NULL)) == 0)
+    if ((rv = gem5fs_syscall(Open, path, (void*)&(fi->flags), sizeof(int), (uint8_t**)&hostfd, NULL)) == 0)
     {
+        printf("gem5fs_open got fd %d\n", *hostfd);
         fi->fh = *hostfd;
         free(hostfd);
     }
@@ -314,37 +336,64 @@ int gem5fs_open(const char *path, struct fuse_file_info *fi)
 /** Read data from an open file */
 int gem5fs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
-    int rv;
+    int rv = 0;
     struct DataOperation dataOp;
     char *tmpBuf;
     unsigned int bufSize;
 
+    printf("gem5fs_read setting up dataOp\n");
+
     dataOp.hostfd = fi->fh;
     dataOp.size = size;
     dataOp.offset = offset;
+    dataOp.data = NULL;
+
+    printf("gem5fs_read dataOp address is %p\n", &dataOp);
 
     if ((rv = gem5fs_syscall(Read, path, (void*)&dataOp, sizeof(struct DataOperation), (uint8_t**)&tmpBuf, &bufSize)) == 0)
     {
+        printf("gem5fs_read got %d bytes: '%s'\n", bufSize, tmpBuf);
         memcpy(buf, tmpBuf, bufSize);
         free(tmpBuf);
     }
 
-    return rv; 
+    return bufSize; 
 }
 
 /** Write data to an open file */
 int gem5fs_write(const char *path, const char *buf, size_t size, off_t offset,
 	     struct fuse_file_info *fi)
 {
-    int rv = 0;
+    int rv;
+    struct DataOperation dataOp;
+    ssize_t *bytes_written;
 
-    return rv; 
+    printf("gem5fs_write called path %s buf %p size %d offset %d\n", path, buf, size, offset);
+
+    dataOp.hostfd = fi->fh;
+    dataOp.size = size;
+    dataOp.offset = offset;
+    dataOp.data = buf;
+
+    printf("gem5fs_write calling gem5fs_syscall\n");
+
+    if ((rv = gem5fs_syscall(Write, path, (void*)&dataOp, sizeof(struct DataOperation), (uint8_t**)&bytes_written, NULL)) == 0)
+    {
+        rv = *bytes_written;
+        free(bytes_written);
+
+        printf("gem5fs_write wrote %d bytes\n", rv);
+    }
+
+    return rv;
 }
 
 /** Get file system statistics */
 int gem5fs_statfs(const char *path, struct statvfs *statv)
 {
     int rv = 0;
+
+    printf("%s called\n", __func__);
 
     return rv; 
 }
@@ -354,19 +403,23 @@ int gem5fs_flush(const char *path, struct fuse_file_info *fi)
 {
     int rv = 0;
 
+    printf("%s called\n", __func__);
+
     return rv; 
 }
 
 /** Release an open file */
 int gem5fs_release(const char *path, struct fuse_file_info *fi)
 {
-    return gem5fs_syscall(Release, path, (void*)(&fi->fh), sizeof(int), NULL, NULL);
+    return gem5fs_syscall(Release, path, (void*)&(fi->fh), sizeof(int), NULL, NULL);
 }
 
 /** Synchronize file contents */
 int gem5fs_fsync(const char *path, int datasync, struct fuse_file_info *fi)
 {
     int rv = 0;
+
+    printf("%s called\n", __func__);
 
     return rv; 
 }
@@ -376,6 +429,8 @@ int gem5fs_setxattr(const char *path, const char *name, const char *value, size_
 {
     int rv = 0;
 
+    printf("%s called\n", __func__);
+
     return rv; 
 }
 
@@ -383,6 +438,8 @@ int gem5fs_setxattr(const char *path, const char *name, const char *value, size_
 int gem5fs_getxattr(const char *path, const char *name, char *value, size_t size)
 {
     int rv = 0;
+
+    printf("%s called\n", __func__);
 
     return rv; 
 }
@@ -392,6 +449,8 @@ int gem5fs_listxattr(const char *path, char *list, size_t size)
 {
     int rv = 0;
 
+    printf("%s called\n", __func__);
+
     return rv; 
 }
 
@@ -400,12 +459,16 @@ int gem5fs_removexattr(const char *path, const char *name)
 {
     int rv = 0;
 
+    printf("%s called\n", __func__);
+
     return rv; 
 }
 
 int gem5fs_opendir(const char *path, struct fuse_file_info *fi)
 {
     int rv = 0;
+
+    printf("%s called\n", __func__);
 
     return rv; 
 }
@@ -465,11 +528,15 @@ void *gem5fs_init(struct fuse_conn_info *conn)
 
 void gem5fs_destroy(void *userdata)
 {
+    printf("%s called\n", __func__);
+
 }
 
 int gem5fs_access(const char *path, int mask)
 {
     int rv = 0;
+
+    printf("%s called\n", __func__);
 
     return rv; 
 }
@@ -478,12 +545,16 @@ int gem5fs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
     int rv = 0;
 
+    printf("%s called\n", __func__);
+
     return rv; 
 }
 
 int gem5fs_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi)
 {
     int rv = 0;
+
+    printf("%s called\n", __func__);
 
     return rv; 
 }
@@ -492,12 +563,16 @@ int gem5fs_fgetattr(const char *path, struct stat *statbuf, struct fuse_file_inf
 {
     int rv = 0;
 
+    printf("%s called\n", __func__);
+
     return rv; 
 }
 
 int gem5fs_lock(const char *path, struct fuse_file_info *ffi, int cmd, struct flock *f_lock)
 {
     int rv = 0;
+
+    printf("%s called\n", __func__);
 
     return rv;
 }
@@ -506,12 +581,16 @@ int gem5fs_bmap(const char *path, size_t blocksize, uint64_t *idx)
 {
     int rv = 0;
 
+    printf("%s called\n", __func__);
+
     return rv; 
 }
 
 int gem5fs_ioctl(const char *path, int cmd, void *arg, struct fuse_file_info *ffi, unsigned int flags, void *data)
 {
     int rv = 0;
+
+    printf("%s called\n", __func__);
 
     return rv;
 }
@@ -520,12 +599,16 @@ int gem5fs_poll(const char *path, struct fuse_file_info *ffi, struct fuse_pollha
 {
     int rv = 0;
 
+    printf("%s called\n", __func__);
+
     return rv;
 }
 
 int gem5fs_write_buf(const char *path, struct fuse_bufvec *buf, off_t off, struct fuse_file_info *ffi)
 {
     int rv = 0;
+
+    printf("gem5fs_write_buf called\n");
 
     return rv;
 }
@@ -534,6 +617,8 @@ int gem5fs_read_buf(const char *path, struct fuse_bufvec **bufp, size_t size, of
 {
     int rv = 0;
 
+    printf("%s called\n", __func__);
+
     return rv;
 }
 
@@ -541,12 +626,16 @@ int gem5fs_flock(const char *path, struct fuse_file_info *ffi, int op)
 {
     int rv = 0;
 
+    printf("%s called\n", __func__);
+
     return rv;
 }
 
 int gem5fs_fallocate(const char *path, int mode, off_t off, off_t len, struct fuse_file_info *ffi)
 {
     int rv = 0;
+
+    printf("%s called\n", __func__);
 
     return rv;
 }
@@ -590,8 +679,8 @@ struct fuse_operations gem5fs_oper = {
   .bmap = gem5fs_bmap,
   .ioctl = gem5fs_ioctl,
   .poll = gem5fs_poll,
-  .write_buf = gem5fs_write_buf,
-  .read_buf = gem5fs_read_buf,
+  .write_buf = NULL,
+  .read_buf = NULL,
   .flock = gem5fs_flock,
   .fallocate = gem5fs_fallocate
 

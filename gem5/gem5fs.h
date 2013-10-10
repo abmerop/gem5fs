@@ -143,6 +143,7 @@ struct DataOperation
     int hostfd;
     size_t size;
     off_t offset;
+    const char *data;
 };
 
 /* These prototypes are only needed by gem5, not by FUSE. */
