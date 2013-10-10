@@ -47,6 +47,11 @@ Import('*')
 Source('gem5/gem5fs.cc')
 
 #
+#  Debug flag for gem5
+#
+DebugFlag('gem5fs')
+
+#
 #  List of the FUSE filesystem sources
 #
 if 'BUILD' in env and env['BUILD'] == "gem5fs":

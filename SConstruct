@@ -101,11 +101,15 @@ env.Append(CFLAGS=("-I%s" % env.root))
 Export('env')
 
 #
-# Define gem5's SConscript Source function for the FUSE build.
+# Define gem5's SConscript Source/DebugFlag function for the FUSE build.
 #
 def Source(src):
     print "Ignoring gem5 source %s" % src
 Export('Source')
+
+def DebugFlag(flg):
+    print "Ignoring gem5 debug flag %s" % flg
+Export('DebugFlag')
 
 #
 # List of sources for the FUSE build and the executable's name.

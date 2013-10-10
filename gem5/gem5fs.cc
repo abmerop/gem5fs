@@ -42,6 +42,7 @@
 
 #include "cpu/thread_context.hh"
 #include "mem/fs_translating_port_proxy.hh"
+#include "debug/gem5fs.hh"
 
 using namespace gem5fs;
 
@@ -67,15 +68,13 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
     }
 
     /* TODO: Make these gem5 DPRINTFs */
-    std::cout << "gem5fs_call: virtual address is 0x" << std::hex
-              << requestAddr << std::dec << std::endl;
-    std::cout << "oper is " << fileOp.oper << std::endl;
-    std::cout << "opType is " << fileOp.opType << std::endl;
-    std::cout << "path ptr is " << (void*)(fileOp.path) << std::endl;
-    std::cout << "fileLength = " << fileOp.pathLength << std::endl;
-    std::cout << "result address is 0x" << std::hex << resultAddr
-              << std::dec << std::endl;
-    std::cout << "gem5fs_call on " << pathname << std::endl;
+    DPRINTF(gem5fs, "\ngem5fs: virtual address is %p\n", requestAddr);
+    DPRINTF(gem5fs, "gem5fs: oper is %d\n", fileOp.oper);
+    DPRINTF(gem5fs, "gem5fs: opType is %d\n", fileOp.opType);
+    DPRINTF(gem5fs, "gem5fs: path ptr is %p\n", (void*)(fileOp.path));
+    DPRINTF(gem5fs, "gem5fs: fileLength = %d\n", fileOp.pathLength);
+    DPRINTF(gem5fs, "gem5fs: result address is %p\n", resultAddr);
+    DPRINTF(gem5fs, "gem5fs: gem5fs_call on %s\n", pathname);
 
     /* Switch the umask for operations that may modify permissions. */
     mode_t saved_mask = umask(0);
@@ -97,9 +96,9 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
              */
             FileOperation *resultOp = fileOp.result;
 
-            std::cout << "gem5fs_call: GetResult: bufferOp->opStruct is " << (void*)(resultOp->opStruct) << std::endl;
-            std::cout << "gem5fs_call: GetResult: bufferOp is " << (void*)(resultOp) << std::endl;
-            std::cout << "gem5fs_call: writing " << resultOp->structSize << " bytes to " << std::hex << resultAddr << std::dec << std::endl;
+            DPRINTF(gem5fs, "gem5fs_call: resultOp->opStruct is %p\n", (void*)(resultOp->opStruct));
+            DPRINTF(gem5fs, "gem5fs_call: resultOp is %p\n", (void*)(resultOp));
+            DPRINTF(gem5fs, "gem5fs_call: writing %d bytes to %p\n", resultOp->structSize, resultAddr);
 
             /*
              *  The fuse filesystem allocates enough memory in opStruct
@@ -189,7 +188,7 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
 
             *fd = open(pathname, flags);
 
-            std::cout << "gem5fs_Open: fd is " << (*fd) << std::endl;
+            DPRINTF(gem5fs, "gem5fs: Open fd is %d\n", *fd);
             
             /* Save the response data for GetResult. */
             BufferResponse(tc, resultAddr, &fileOp, (*fd >= 0), (uint8_t*)fd, sizeof(int));
@@ -205,7 +204,7 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             uint8_t *tmpBuf = new uint8_t[dataOp.size];
             ssize_t rv = pread(dataOp.hostfd, tmpBuf, dataOp.size, dataOp.offset);
 
-            std::cout << "gem5fs_read read " << tmpBuf << std::endl;
+            DPRINTF(gem5fs, "gem5fs: read %d bytes (%s) from fd %d\n", rv, tmpBuf, dataOp.hostfd);
 
             /* Save the response data for GetResult. */
             BufferResponse(tc, resultAddr, &fileOp, (rv >= 0), tmpBuf, rv);
@@ -221,10 +220,9 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             char *tmpBuf = new char[dataOp.size];
             CopyOut(tc, tmpBuf, (Addr)dataOp.data, dataOp.size);
 
-            std::cout << "Writing '" << tmpBuf << " (" << dataOp.size << ") bytes to fd "
-                      << dataOp.hostfd << std::endl;
-
             ssize_t rv = pwrite(dataOp.hostfd, tmpBuf, dataOp.size, dataOp.offset);
+
+            DPRINTF(gem5fs, "gem5fs: Writing %d bytes (%s) to fd %d returned %d\n", dataOp.size, tmpBuf, dataOp.hostfd, rv);
 
             /* Send the response. */
             BufferResponse(tc, resultAddr, &fileOp, (rv >= 0), (uint8_t*)&rv, sizeof(ssize_t));
@@ -238,6 +236,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             CopyOut(tc, &fd, inputAddr, fileOp.structSize);
 
             int rv = close(fd);
+
+            DPRINTF(gem5fs, "gem5fs: close on fd %d returned %d\n", fd, rv);
             
             /* Send the response directly. */
             SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
@@ -369,10 +369,9 @@ FileOperation* gem5fs::BufferResponse(ThreadContext *tc, Addr resultAddr, FileOp
     bufferOp->result = bufferOp;
     bufferOp->errnum = errno;
 
-    /* TODO: Make these gem5 DPRINTFs */
-    std::cout << "gem5fs_call: bufferOp->opStruct is " << (void*)(bufferOp->opStruct) << std::endl;
-    std::cout << "gem5fs_call: bufferOp is " << (void*)(bufferOp) << std::endl;
-    std::cout << "gem5fs_call: structSize is " << bufferOp->structSize << std::endl;
+    DPRINTF(gem5fs, "gem5fs: bufferOp->opStruct is %p\n", (void*)(bufferOp->opStruct));
+    DPRINTF(gem5fs, "gem5fs: bufferOp is %p\n", (void*)(bufferOp));
+    DPRINTF(gem5fs, "gem5fs: writing %d bytes to %p\n", bufferOp->structSize, resultAddr);
 
     CopyIn(tc, (Addr)(resultAddr), bufferOp, sizeof(FileOperation));
 
