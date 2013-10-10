@@ -299,15 +299,35 @@ int gem5fs_utimens(const char *path, const struct timespec tv[2])
 /** File open operation */
 int gem5fs_open(const char *path, struct fuse_file_info *fi)
 {
-    int rv = 0;
+    int rv;
+    int *hostfd;
 
-    return rv; 
+    if ((rv = gem5fs_syscall(Open, path, (void*)(fi->flags), sizeof(int), (uint8_t**)&hostfd, NULL)) == 0)
+    {
+        fi->fh = *hostfd;
+        free(hostfd);
+    }
+
+    return rv;
 }
 
 /** Read data from an open file */
 int gem5fs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
-    int rv = 0;
+    int rv;
+    struct DataOperation dataOp;
+    char *tmpBuf;
+    unsigned int bufSize;
+
+    dataOp.hostfd = fi->fh;
+    dataOp.size = size;
+    dataOp.offset = offset;
+
+    if ((rv = gem5fs_syscall(Read, path, (void*)&dataOp, sizeof(struct DataOperation), (uint8_t**)&tmpBuf, &bufSize)) == 0)
+    {
+        memcpy(buf, tmpBuf, bufSize);
+        free(tmpBuf);
+    }
 
     return rv; 
 }
@@ -340,9 +360,7 @@ int gem5fs_flush(const char *path, struct fuse_file_info *fi)
 /** Release an open file */
 int gem5fs_release(const char *path, struct fuse_file_info *fi)
 {
-    int rv = 0;
-
-    return rv; 
+    return gem5fs_syscall(Release, path, (void*)(&fi->fh), sizeof(int), NULL, NULL);
 }
 
 /** Synchronize file contents */

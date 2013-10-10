@@ -138,6 +138,13 @@ struct FileOperation
     int errnum;                    // Copy of errno from host
 };
 
+struct DataOperation
+{
+    int hostfd;
+    size_t size;
+    off_t offset;
+};
+
 /* These prototypes are only needed by gem5, not by FUSE. */
 #ifdef __cplusplus
 uint64_t ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestAddr, Addr resultAddr);
