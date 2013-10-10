@@ -138,9 +138,11 @@ struct FileOperation
     int errnum;                    // Copy of errno from host
 };
 
-/* This prototype is only needed by gem5, not by FUSE. */
+/* These prototypes are only needed by gem5, not by FUSE. */
 #ifdef __cplusplus
 uint64_t ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestAddr, Addr resultAddr);
+
+void BufferResponse(ThreadContext *tc, Addr resultAddr, FileOperation *fileOperation, bool success, uint8_t *responseData, unsigned int responseSize);
 #endif
 
 #ifdef __cplusplus

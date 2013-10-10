@@ -49,19 +49,9 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
 {
     uint64_t result = 0;
 
-    std::cout << "gem5fs_call: virtual address is 0x" << std::hex
-              << requestAddr << std::dec << std::endl;
-
     /* Get the file operation struct. */
     FileOperation fileOp;
     CopyOut(tc, &fileOp, requestAddr, sizeof(FileOperation));
-
-    std::cout << "oper is " << fileOp.oper << std::endl;
-    std::cout << "opType is " << fileOp.opType << std::endl;
-    std::cout << "path ptr is " << (void*)(fileOp.path) << std::endl;
-    std::cout << "fileLength = " << fileOp.pathLength << std::endl;
-    std::cout << "result address is 0x" << std::hex << resultAddr
-              << std::dec << std::endl;
 
     /* Get the pathname in the file operation. */
     char *pathname;
@@ -76,6 +66,15 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
         strncpy(pathname, "/\0", 2);
     }
 
+    /* TODO: Make these gem5 DPRINTFs */
+    std::cout << "gem5fs_call: virtual address is 0x" << std::hex
+              << requestAddr << std::dec << std::endl;
+    std::cout << "oper is " << fileOp.oper << std::endl;
+    std::cout << "opType is " << fileOp.opType << std::endl;
+    std::cout << "path ptr is " << (void*)(fileOp.path) << std::endl;
+    std::cout << "fileLength = " << fileOp.pathLength << std::endl;
+    std::cout << "result address is 0x" << std::hex << resultAddr
+              << std::dec << std::endl;
     std::cout << "gem5fs_call on " << pathname << std::endl;
 
     switch (fileOp.oper)
@@ -137,31 +136,13 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
              */
             struct stat *statbuf = new struct stat;
             int rv = ::lstat(pathname, statbuf);
-            FileOperation *bufferOp = new FileOperation;
 
-            std::cout << "gem5fs_call: lstat returned " << rv << std::endl;
-
-            /* Build the buffered response struct. */
-            bufferOp->oper = (rv == 0) ? fileOp.oper : ErrorCode;
-            bufferOp->opType = ResponseOperation;
-            bufferOp->path = fileOp.path;
-            bufferOp->pathLength = fileOp.pathLength;
-            bufferOp->opStruct = (uint8_t*)(statbuf);
-            bufferOp->structSize = sizeof(struct stat);
-            bufferOp->result = bufferOp;
-            bufferOp->errnum = errno;
-
-            std::cout << "gem5fs_call: GetAttr: bufferOp is " << (void*)(bufferOp) << std::endl;
-            std::cout << "gem5fs_call: GetAttr: structSize is " << bufferOp->structSize << std::endl;
-
-            CopyIn(tc, (Addr)(resultAddr), bufferOp, sizeof(FileOperation));
+            BufferResponse(tc, resultAddr, &fileOp, (rv == 0), (uint8_t*)statbuf, sizeof(struct stat));
 
             break;
         }
         case ReadDir:
         {
-            FileOperation *bufferOp = new FileOperation;
-
             /*
              *  Push back the entires to a vector. Once we knows how many
              *  entires we have, we know how much space to allocate for the
@@ -204,15 +185,9 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             /*
              *  Allocate enough buffer space for the data to be returned.
              */
-            //size_t entry_buffer_size = sizeof(struct dirent) * entries.size();
             size_t entry_buffer_size = 256 * entries.size();
-            //struct dirent *all_entries = (struct dirent *)malloc(entry_buffer_size);
             char *all_entries = (char*)malloc(entry_buffer_size);
-            //struct dirent *cur_entry = all_entries;
             char *cur_entry = all_entries;
-
-            std::cout << "gem5fs_call: ReadDir: all_entries is " << (void*)(all_entries) << std::endl;
-            std::cout << "gem5fs_call: ReadDir: sizeof dirent struct is " << sizeof(struct dirent) << std::endl;
 
             for(auto iter = entries.begin(); iter != entries.end(); ++iter)
             {
@@ -223,22 +198,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
                 cur_entry += 256;
             }
 
-            /* Build the buffered response struct. */
-            bufferOp->oper = (entries.size() == 0) ? ErrorCode : fileOp.oper;
-            bufferOp->opType = ResponseOperation;
-            bufferOp->path = fileOp.path;
-            bufferOp->pathLength = fileOp.pathLength;
-            bufferOp->opStruct = (uint8_t*)(all_entries);
-            bufferOp->structSize = entry_buffer_size;
-            bufferOp->result = bufferOp;
-            bufferOp->errnum = errno;
-
-            std::cout << "gem5fs_call: ReadDir: bufferOp->opStruct is " << (void*)(bufferOp->opStruct) << std::endl;
-            std::cout << "gem5fs_call: ReadDir: bufferOp is " << (void*)(bufferOp) << std::endl;
-            std::cout << "gem5fs_call: ReadDir: structSize is " << bufferOp->structSize << std::endl;
-
-            /* Copy the struct to the response struct in FUSE. */
-            CopyIn(tc, (Addr)(resultAddr), bufferOp, sizeof(FileOperation));
+            /* Save the response data for GetResult. */
+            BufferResponse(tc, resultAddr, &fileOp, (entries.size() != 0), (uint8_t*)all_entries, entry_buffer_size);
 
             break;
         }
@@ -250,20 +211,10 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
 
             /* Call mkdir */ 
             int rv = ::mkdir(pathname, dirMode);
-            FileOperation *bufferOp = new FileOperation;
+
+            /* Save the response data for GetResult. */
+            BufferResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
             
-            /* Build the buffered response struct. */
-            bufferOp->oper = (rv == 0) ? fileOp.oper : ErrorCode;
-            bufferOp->opType = ResponseOperation;
-            bufferOp->path = fileOp.path;
-            bufferOp->pathLength = fileOp.pathLength;
-            bufferOp->opStruct = NULL;
-            bufferOp->structSize = 0;
-            bufferOp->result = bufferOp;
-            bufferOp->errnum = errno;
-
-            CopyIn(tc, (Addr)(resultAddr), bufferOp, sizeof(FileOperation));
-
             break;
         }
         default:
@@ -274,6 +225,30 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
 
 
     return result;
+}
+
+
+
+void gem5fs::BufferResponse(ThreadContext *tc, Addr resultAddr, FileOperation *fileOperation, bool success, uint8_t *responseData, unsigned int responseSize)
+{
+    FileOperation *bufferOp = new FileOperation;
+
+    /* Build the buffered response struct. */
+    bufferOp->oper = (success) ? fileOperation->oper : ErrorCode;
+    bufferOp->opType = ResponseOperation;
+    bufferOp->path = fileOperation->path;
+    bufferOp->pathLength = fileOperation->pathLength;
+    bufferOp->opStruct = responseData;
+    bufferOp->structSize = responseSize;
+    bufferOp->result = bufferOp;
+    bufferOp->errnum = errno;
+
+    /* TODO: Make these gem5 DPRINTFs */
+    std::cout << "gem5fs_call: bufferOp->opStruct is " << (void*)(bufferOp->opStruct) << std::endl;
+    std::cout << "gem5fs_call: bufferOp is " << (void*)(bufferOp) << std::endl;
+    std::cout << "gem5fs_call: structSize is " << bufferOp->structSize << std::endl;
+
+    CopyIn(tc, (Addr)(resultAddr), bufferOp, sizeof(FileOperation));
 }
 
 
