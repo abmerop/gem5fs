@@ -213,7 +213,21 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             int rv = ::mkdir(pathname, dirMode);
 
             /* Save the response data for GetResult. */
-            BufferResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
+            SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
+            
+            break;
+        }
+        case ChangePermission:
+        {
+            /* mkdir requires input data. */
+            mode_t chmodMode;
+            CopyOut(tc, &dirMode, inputAddr, sizeof(mode_t));
+
+            /* Call mkdir */ 
+            int rv = ::chmod(pathname, chmodMode);
+
+            /* Save the response data for GetResult. */
+            SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
             
             break;
         }
@@ -228,8 +242,12 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
 }
 
 
-
-void gem5fs::BufferResponse(ThreadContext *tc, Addr resultAddr, FileOperation *fileOperation, bool success, uint8_t *responseData, unsigned int responseSize)
+/*
+ *  Allocates response data and "buffers" it by setting the result pointer
+ *  to itself, allowing the FUSE fs to call GetResult with said pointer and
+ *  access this data again without the pointer being lost.
+ */
+FileOperation* gem5fs::BufferResponse(ThreadContext *tc, Addr resultAddr, FileOperation *fileOperation, bool success, uint8_t *responseData, unsigned int responseSize)
 {
     FileOperation *bufferOp = new FileOperation;
 
@@ -249,6 +267,20 @@ void gem5fs::BufferResponse(ThreadContext *tc, Addr resultAddr, FileOperation *f
     std::cout << "gem5fs_call: structSize is " << bufferOp->structSize << std::endl;
 
     CopyIn(tc, (Addr)(resultAddr), bufferOp, sizeof(FileOperation));
+
+    return bufferOp;
+}
+
+
+/*
+ *  Send the response and delete the local buffered operation for the 
+ *  case of operation that do not require a response.
+ */
+void gem5fs::SendResponse(ThreadContext *tc, Addr resultAddr, FileOperation *fileOperation, bool success, uint8_t *responseData, unsigned int responseSize)
+{
+    FileOperation *bufferOp = BufferResponse(tc, resultAddr, fileOperation, success, responseData, responseSize);
+
+    delete bufferOp;
 }
 
 

@@ -142,7 +142,8 @@ struct FileOperation
 #ifdef __cplusplus
 uint64_t ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestAddr, Addr resultAddr);
 
-void BufferResponse(ThreadContext *tc, Addr resultAddr, FileOperation *fileOperation, bool success, uint8_t *responseData, unsigned int responseSize);
+FileOperation* BufferResponse(ThreadContext *tc, Addr resultAddr, FileOperation *fileOperation, bool success, uint8_t *responseData, unsigned int responseSize);
+void SendResponse(ThreadContext *tc, Addr resultAddr, FileOperation *fileOperation, bool success, uint8_t *responseData, unsigned int responseSize);
 #endif
 
 #ifdef __cplusplus

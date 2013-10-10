@@ -120,7 +120,7 @@ int gem5fs_getattr(const char *path, struct stat *statbuf)
     request.structSize = 0;
 
     /* Call lstat on the host. */
-    m5_gem5fs_call((void*)fpath, (void*)&request, (void*)&response);
+    m5_gem5fs_call(NULL, (void*)&request, (void*)&response);
 
     /* Check the result. */
     if (response.oper == ErrorCode)
@@ -163,7 +163,7 @@ int gem5fs_getattr(const char *path, struct stat *statbuf)
     printf("gem5fs_getattr allocated %d byte buffer at %p\n", response.structSize, request.opStruct);
     
     /* Get the result and place it in request.opStruct. */
-    m5_gem5fs_call((void*)fpath, (void*)&request, (void*)request.opStruct);
+    m5_gem5fs_call(NULL, (void*)&request, (void*)request.opStruct);
 
     printf("gem5fs_getattr returned %d bytes of data.\n", response.structSize); 
 
@@ -208,7 +208,7 @@ int gem5fs_mkdir(const char *path, mode_t mode)
     printf("gem5fs_getattr called on %s (%s)\n", path, fpath);
 
     /* Build the file operation struct. */
-    request.oper = GetAttr;
+    request.oper = MakeDirectory;
     request.opType = RequestOperation;
     request.path = fpath;
     request.pathLength = strlen(fpath);
@@ -216,61 +216,13 @@ int gem5fs_mkdir(const char *path, mode_t mode)
     request.structSize = 0;
 
     /* Call mkdir on the host. */
-    m5_gem5fs_call((void*)fpath, (void*)&request, (void*)&response);
+    m5_gem5fs_call((void*)&mode, (void*)&request, (void*)&response);
 
     /* Check the result. */
     if (response.oper == ErrorCode)
     {
         return gem5fs_error(__func__, response.errnum);
     }
-
-    /* 
-     *  Request was successful, but we need to allocate space
-     *  in the FUSE filesystem's memory space in to which the 
-     *  pseudo op will copy. 
-     *
-     *  request.result has the pointer to the FileOperation
-     *  in gem5's memory space, so we need to send this.
-     *
-     *  structSize will tell us how much space we need to 
-     *  allocate to get the result. 
-     */
-    request.oper = GetResult;
-    request.opType = RequestOperation;
-    request.path = fpath;
-    request.pathLength = strlen(fpath);
-    request.opStruct = (uint8_t*)malloc(response.structSize);
-    request.structSize = response.structSize;
-    request.result = response.result;
-
-    /*
-     *  I suspect that the malloc function is lazy and just 
-     *  returns a pointer to a free region of memory and doesn't
-     *  actually do things like update the pagetable, etc. For 
-     *  some directories with more than a dozen files, the gem5
-     *  translation fails. Here i'm using memset to zero out
-     *  the data, which in turn accesses it and the pagetable is
-     *  updated* preventing a fault in gem5
-     *
-     *  * = Partially conjecture.
-     */
-    memset(request.opStruct, 0, response.structSize);
-
-    printf("gem5fs_getattr allocated %d byte buffer at %p\n", response.structSize, request.opStruct);
-    
-    /* Get the result and place it in request.opStruct. */
-    m5_gem5fs_call((void*)fpath, (void*)&request, (void*)request.opStruct);
-
-    printf("gem5fs_getattr returned %d bytes of data.\n", response.structSize); 
-
-    /*
-     *  The result's struct contains the stat struct from
-     *  the host system, copy this to FUSE's statbuf.
-     */
-    memcpy(statbuf, request.opStruct, request.structSize);
-
-    /* We're done with this memory. */
-    free(request.opStruct);
 
     return 0; 
 }
@@ -318,9 +270,33 @@ int gem5fs_link(const char *path, const char *newpath)
 /** Change the permission bits of a file */
 int gem5fs_chmod(const char *path, mode_t mode)
 {
-    int rv = 0;
+    struct FileOperation request;
+    struct FileOperation response;
+    char fpath[PATH_MAX];
 
-    return rv; 
+    /* Get the path on the host. */
+    gem5fs_fullpath(fpath, path);
+
+    printf("gem5fs_chmod called on %s (%s)\n", path, fpath);
+
+    /* Build the file operation struct. */
+    request.oper = ChangePermission;
+    request.opType = RequestOperation;
+    request.path = fpath;
+    request.pathLength = strlen(fpath);
+    request.opStruct = NULL;
+    request.structSize = 0;
+
+    /* Call mkdir on the host. */
+    m5_gem5fs_call((void*)&mode, (void*)&request, (void*)&response);
+
+    /* Check the result. */
+    if (response.oper == ErrorCode)
+    {
+        return gem5fs_error(__func__, response.errnum);
+    }
+
+    return 0; 
 }
 
 /** Change the owner and group of a file */
@@ -491,7 +467,7 @@ int gem5fs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t of
     request.structSize = 0;
 
     /* Call readdir recursively on host. */
-    m5_gem5fs_call((void*)fpath, (void*)&request, (void*)&response);
+    m5_gem5fs_call(NULL, (void*)&request, (void*)&response);
 
     /* Check the result. */
     if (response.oper == ErrorCode)
@@ -534,7 +510,7 @@ int gem5fs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t of
     printf("gem5fs_readdir allocated %d byte buffer at %p\n", response.structSize, request.opStruct);
     
     /* Get the result and place it in request.opStruct. */
-    m5_gem5fs_call((void*)fpath, (void*)&request, (void*)request.opStruct);
+    m5_gem5fs_call(NULL, (void*)&request, (void*)request.opStruct);
 
     printf("gem5fs_readdir returned %d bytes of data.\n", response.structSize); 
 
