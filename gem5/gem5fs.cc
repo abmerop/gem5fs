@@ -117,30 +117,7 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
              *  is also allocated for most operations, so this is
              *  also deleted first.
              */
-            if (resultOp->opStruct != NULL )
-            {
-                if(resultOp->oper == GetAttr)
-                {
-                    struct stat *statbuf = (struct stat *)resultOp->opStruct;
-                    delete statbuf;
-                }
-                else if(resultOp->oper == Open)
-                {
-                    int *fd = (int *)resultOp->opStruct;
-                    delete fd;
-                }
-                else if(resultOp->oper == Read)
-                {
-                    uint8_t *data = resultOp->opStruct;
-                    delete data;
-                }
-                else if(resultOp->oper == ReadDir)
-                {
-                    char *all_entries = (char *)resultOp->opStruct;
-                    delete all_entries;
-                }
-            }
-            delete resultOp;
+            CleanUp(resultOp);
 
             break;
         }
@@ -349,6 +326,23 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
     return result;
 }
 
+/*
+ *  Clean up any malloc'd data.
+ */
+void gem5fs::CleanUp(FileOperation *bufferOp)
+{
+    if (bufferOp->opStruct != NULL )
+    {
+        /*
+         *  I *think* free will work properly even if the
+         *  type of opStruct isn't the same as what it was
+         *  cast to when memory was allocated (malloc does
+         *  return void after all).
+         */
+        delete bufferOp->opStruct;
+    }
+    delete bufferOp;
+}
 
 /*
  *  Allocates response data and "buffers" it by setting the result pointer
@@ -374,6 +368,13 @@ FileOperation* gem5fs::BufferResponse(ThreadContext *tc, Addr resultAddr, FileOp
     DPRINTF(gem5fs, "gem5fs: writing %d bytes to %p\n", bufferOp->structSize, resultAddr);
 
     CopyIn(tc, (Addr)(resultAddr), bufferOp, sizeof(FileOperation));
+
+    /* Trash response data on error. The FUSE FS won't request after errors. */
+    if (!success)
+    {
+        CleanUp(bufferOp);
+        bufferOp = NULL;
+    }
 
     return bufferOp;
 }
