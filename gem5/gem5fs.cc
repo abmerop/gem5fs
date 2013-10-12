@@ -161,6 +161,16 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
 
             SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
         }
+        case Rename:
+        {
+            /* New path is the input. */
+            char *newpath = new char[fileOp.structSize+1];
+            CopyOut(tc, newpath, inputAddr, fileOp.structSize+1);
+
+            int rv = ::rename(pathname, newpath);
+
+            SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
+        }
         case Truncate:
         {
             /* FUSE FS sends the newsize as input. */

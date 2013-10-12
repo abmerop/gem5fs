@@ -267,11 +267,7 @@ int gem5fs_symlink(const char *path, const char *link)
 /** Rename a file */
 int gem5fs_rename(const char *path, const char *newpath)
 {
-    int rv = 0;
-
-    printf("%s called\n", __func__);
-
-    return rv; 
+    return gem5fs_syscall(Rename, path, (void*)newpath, strlen(newpath), NULL, NULL); 
 }
 
 /** Create a hard link to a file */
