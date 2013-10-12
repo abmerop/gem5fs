@@ -211,8 +211,15 @@ int gem5fs_readlink(const char *path, char *link, size_t size)
     /* Just pass in the size of the buffer. */
     if ((rv = gem5fs_syscall(ReadLink, path, (void*)&modsize, sizeof(size_t), (uint8_t**)&buf, &bufsiz)) == 0)
     {
-        strcpy(link, mountpoint);
-        strcat(link, buf);
+        if (buf[0] == '/')
+        {
+            strcpy(link, mountpoint);
+            strcat(link, buf);
+        }
+        else
+        {
+            strcpy(link, buf);
+        }
         free(buf);
     }
 
