@@ -563,11 +563,17 @@ int gem5fs_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi)
 
 int gem5fs_fgetattr(const char *path, struct stat *statbuf, struct fuse_file_info *fi)
 {
-    int rv = 0;
+    int rv;
+    int response_size;
+    struct stat *tmpStat;
 
-    printf("%s called\n", __func__);
+    if ((rv = gem5fs_syscall(GetAttr, path, (void*)&(fi->fh), sizeof(fi->fh), (uint8_t**)&tmpStat, &response_size)) == 0)
+    {
+        memcpy(statbuf, tmpStat, response_size);
+        free(tmpStat);
+    }
 
-    return rv; 
+    return rv;
 }
 
 int gem5fs_lock(const char *path, struct fuse_file_info *ffi, int cmd, struct flock *f_lock)

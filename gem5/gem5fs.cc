@@ -356,6 +356,19 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             BufferResponse(tc, resultAddr, &fileOp, (*fd >= 0), (uint8_t*)fd, sizeof(int));
             break;
         }
+        case FGetAttr:
+        {
+            /* FUSE FS sends file descriptor as input. */
+            int fd;
+            CopyOut(tc, &fd, inputAddr, fileOp.structSize);
+
+            struct stat *statbuf = new struct stat;
+            int rv = ::fstat(fd, statbuf);
+
+            BufferResponse(tc, resultAddr, &fileOp, (rv == 0), (uint8_t*)statbuf, sizeof(struct stat));
+
+            break;
+        }
         default:
         {
             break;
