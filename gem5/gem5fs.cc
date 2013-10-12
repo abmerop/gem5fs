@@ -154,6 +154,13 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             
             break;
         }
+        case Unlink:
+        {
+            /* No input data. */
+            int rv = ::unlink(pathname);
+
+            SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
+        }
         case Truncate:
         {
             /* FUSE FS sends the newsize as input. */

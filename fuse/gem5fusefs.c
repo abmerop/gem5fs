@@ -245,11 +245,7 @@ int gem5fs_mkdir(const char *path, mode_t mode)
 /** Remove a file */
 int gem5fs_unlink(const char *path)
 {
-    int rv = 0;
-
-    printf("%s called\n", __func__);
-
-    return rv; 
+    return gem5fs_syscall(Unlink, path, NULL, 0, NULL, NULL);
 }
 
 /** Remove a directory */
