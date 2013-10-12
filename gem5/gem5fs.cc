@@ -154,6 +154,16 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             
             break;
         }
+        case Truncate:
+        {
+            /* FUSE FS sends the newsize as input. */
+            off_t length;
+            CopyOut(tc, &length, inputAddr, fileOp.structSize);
+
+            int rv = ::truncate(pathname, length);
+
+            break;
+        }
         case Open:
         {
             /* FUSE FS sends the flags as input. */
@@ -312,6 +322,38 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             /* Save the response data for GetResult. */
             SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
             
+            break;
+        }
+        case Access:
+        {
+            /* FUSE FS sends mask as input. */
+            int mask;
+            CopyOut(tc, &mask, inputAddr, fileOp.structSize);
+
+            /* Call access */
+            int rv = ::access(pathname, mask);
+
+            /* Send the return value back. */
+            SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
+
+            break;
+        }
+        case Create:
+        {
+            /* FUSE FS sends mask as input. */
+            mode_t mode;
+            CopyOut(tc, &mode, inputAddr, fileOp.structSize);
+
+            /* Create a pointer to the file descriptor. */
+            int *fd = new int;
+
+            /* Call creat */
+            *fd = ::creat(pathname, mode);
+
+            DPRINTF(gem5fs, "gem5fs: Create fd is %d\n", *fd);
+            
+            /* Save the response data for GetResult. */
+            BufferResponse(tc, resultAddr, &fileOp, (*fd >= 0), (uint8_t*)fd, sizeof(int));
             break;
         }
         default:

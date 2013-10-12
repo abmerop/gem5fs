@@ -307,11 +307,7 @@ int gem5fs_chown(const char *path, uid_t uid, gid_t gid)
 /** Change the size of a file */
 int gem5fs_truncate(const char *path, off_t newsize)
 {
-    int rv = 0;
-
-    printf("%s called\n", __func__);
-
-    return rv; 
+    return gem5fs_syscall(Truncate, path, (void*)&newsize, sizeof(off_t), NULL, NULL); 
 }
 
 /** Change the access and/or modification times of a file */
@@ -408,11 +404,8 @@ int gem5fs_statfs(const char *path, struct statvfs *statv)
 /** Possibly flush cached data */
 int gem5fs_flush(const char *path, struct fuse_file_info *fi)
 {
-    int rv = 0;
-
-    printf("%s called\n", __func__);
-
-    return rv; 
+    /* We don't cache data. */
+    return 0; 
 }
 
 /** Release an open file */
@@ -541,20 +534,22 @@ void gem5fs_destroy(void *userdata)
 
 int gem5fs_access(const char *path, int mask)
 {
-    int rv = 0;
-
-    printf("%s called\n", __func__);
-
-    return rv; 
+    return gem5fs_syscall(Access, path, (void*)&mask, sizeof(int), NULL, NULL); 
 }
 
 int gem5fs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
-    int rv = 0;
+    int rv;
+    int *hostfd;
 
-    printf("%s called\n", __func__);
+    if ((rv = gem5fs_syscall(Create, path, (void*)&mode, sizeof(mode_t), (uint8_t**)&hostfd, NULL)) == 0)
+    {
+        printf("gem5fs_open got fd %d\n", *hostfd);
+        fi->fh = *hostfd;
+        free(hostfd);
+    }
 
-    return rv; 
+    return rv;
 }
 
 int gem5fs_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi)
@@ -679,15 +674,15 @@ struct fuse_operations gem5fs_oper = {
   .destroy = gem5fs_destroy,
   .access = gem5fs_access,
   .create = gem5fs_create,
-  .ftruncate = gem5fs_ftruncate,
+  .ftruncate = NULL,              // Call truncate instead
   .fgetattr = gem5fs_fgetattr,
   .lock = gem5fs_lock,
   .utimens = gem5fs_utimens,
   .bmap = gem5fs_bmap,
   .ioctl = gem5fs_ioctl,
   .poll = gem5fs_poll,
-  .write_buf = NULL,
-  .read_buf = NULL,
+  .write_buf = NULL,              // Call write instead
+  .read_buf = NULL,               // Call read instead
   .flock = gem5fs_flock,
   .fallocate = gem5fs_fallocate
 
