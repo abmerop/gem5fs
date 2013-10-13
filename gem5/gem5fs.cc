@@ -121,6 +121,74 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
 
             break;
         }
+        case TestGem5:
+        {
+            /* Input is a TestOperation struct. */
+            TestOperation testOp;
+            CopyOut(tc, &testOp, inputAddr, fileOp.structSize);
+
+            /* Assume true, mark false on any failure. */
+            bool test_passed = true; 
+
+            /* 
+             *  structSize should be the same as the sizeof 
+             *  TestOperation and the input test operation's
+             *  TestOperation_size.
+             */
+            if (fileOp.structSize != sizeof(TestOperation)
+                || testOp.TestOperation_size != sizeof(TestOperation))
+            {
+                warn("gem5fs: TestOperation struct does not match guest's size.\n");
+                test_passed = false;
+            }
+
+            /*
+             *  For anything else just compare the struct value with sizeof.
+             */
+            if (testOp.mode_t_size != sizeof(mode_t))
+            {
+                warn("gem5fs: mode_t does not match guest's size.\n");
+                test_passed = false;
+            }
+
+            if (testOp.struct_stat_size != sizeof(struct stat))
+            {
+                warn("gem5fs: stat struct does not match guest's size.\n");
+                test_passed = false;
+            }
+
+            if (testOp.char_size != sizeof(char))
+            {
+                warn("gem5fs: char does not match guest's size.\n");
+                test_passed = false;
+            }
+
+            if (testOp.off_t_size != sizeof(off_t))
+            {
+                warn("gem5fs: char does not match guest's size.\n");
+                test_passed = false;
+            }
+
+            if (testOp.int_size != sizeof(int))
+            {
+                warn("gem5fs: int does not match guest's size.\n");
+                test_passed = false;
+            }
+
+            if (testOp.DataOperation_size != sizeof(struct DataOperation))
+            {
+                warn("gem5fs: DataOperation struct does not match guest's size.\n");
+                test_passed = false;
+            }
+
+            /*
+             *  If anything failed, we will send back an error code to
+             *  the FUSE FS, which will decide to mount or not.
+             */
+            SendResponse(tc, resultAddr, &fileOp, test_passed, NULL, 0);
+
+            break;
+        }
         case GetAttr:
         {
             /*
@@ -160,6 +228,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             int rv = ::unlink(pathname);
 
             SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
+
+            break;
         }
         case Rename:
         {
@@ -170,6 +240,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             int rv = ::rename(pathname, newpath);
 
             SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
+
+            break;
         }
         case Truncate:
         {
@@ -178,6 +250,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             CopyOut(tc, &length, inputAddr, fileOp.structSize);
 
             int rv = ::truncate(pathname, length);
+
+            SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
 
             break;
         }

@@ -69,18 +69,6 @@ static int gem5fs_error(const char *operation, int error)
     return -error;
 }
 
-/** Get the path to the file on the host filesystem */
-static void gem5fs_fullpath(char fpath[PATH_MAX], const char *path)
-{
-    char *mountpoint = ((struct gem5fs_state *)fuse_get_context()->private_data)->rootdir;
-
-    printf("path = %s, mount = %s\n", path, mountpoint);
-
-    strncpy(fpath, path, PATH_MAX);
-
-    printf("path = %s, set fpath to %s\n", path, fpath);
-}
-
 /*
  *  Sends a request to gem5 via pseudo instruction and returns a response if
  *  specified by the caller. Requests are sent with the input data input_data
@@ -94,18 +82,14 @@ int gem5fs_syscall(Operation op, const char *path, void *input_data, unsigned in
 {
     struct FileOperation request;
     struct FileOperation response;
-    char fpath[PATH_MAX];
 
-    /* Get the path on the host. */
-    gem5fs_fullpath(fpath, path);
-
-    printf("gem5fs_syscall called on %s (%s)\n", path, fpath);
+    printf("gem5fs_syscall called on %s\n", path);
 
     /* Build the file operation struct. */
     request.oper = op;
     request.opType = RequestOperation;
-    request.path = fpath;
-    request.pathLength = strlen(fpath);
+    request.path = (char*)path;
+    request.pathLength = strlen(path);
     request.opStruct = input_data;
     request.structSize = input_size;
 
@@ -139,8 +123,8 @@ int gem5fs_syscall(Operation op, const char *path, void *input_data, unsigned in
      */
     request.oper = GetResult;
     request.opType = RequestOperation;
-    request.path = fpath;
-    request.pathLength = strlen(fpath);
+    request.path = (char*)path;
+    request.pathLength = strlen(path);
     request.opStruct = (uint8_t*)malloc(response.structSize);
     request.structSize = response.structSize;
     request.result = response.result;
@@ -709,13 +693,30 @@ int main(int argc, char *argv[])
         abort();
     }
 
-    /* Check sizes */
-    printf("sizeof(FileOperation) is %d\n", sizeof(struct FileOperation));
-
     /* Determine the mountpoint of the filesystem, e.g., '/host' */
     gem5fs_data->rootdir = realpath(argv[argc-1], NULL);
-    printf("gem5fs mounted at '%s'.\n", gem5fs_data->rootdir);
+    printf("gem5fs attempting mount at '%s'.\n", gem5fs_data->rootdir);
     
+    /* Check sizes */
+    struct TestOperation testOp;
+    int test_rv = 0;
+
+    testOp.mode_t_size = sizeof(mode_t);
+    testOp.struct_stat_size = sizeof(struct stat);
+    testOp.char_size = sizeof(char);
+    testOp.off_t_size = sizeof(off_t);
+    testOp.int_size = sizeof(int);
+    testOp.DataOperation_size = sizeof(struct DataOperation);
+    testOp.TestOperation_size = sizeof(struct TestOperation);
+
+    test_rv = gem5fs_syscall(TestGem5, "", (void*)&testOp, sizeof(struct TestOperation), NULL, NULL);
+    if (test_rv != 0)
+    {
+        fprintf(stderr, "Type size sanity check failed. Check warning output in gem5. Exiting.\n");
+        abort();
+    }
+    printf("gem5fs mounted at '%s'\n", gem5fs_data->rootdir);
+
     /* Turn over control to fuse. */
     fuse_stat = fuse_main(argc, argv, &gem5fs_oper, gem5fs_data);
     fprintf(stderr, "fuse_main returned %d.\n", fuse_stat);

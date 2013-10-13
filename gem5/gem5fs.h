@@ -146,6 +146,27 @@ struct DataOperation
     const char *data;
 };
 
+/* 
+ *  This should include all possible data types being copied into
+ *  or out of gem5. This is a quick sanity check to see if these
+ *  data types are the same size on both the host and the guest
+ *  systems. 
+ *
+ *  I would expect most to be the same for linux 32/64 bit, but it
+ *  is nice to provide an interface to test this.
+ */
+struct TestOperation
+{
+    size_t mode_t_size;        /**< Used in chmod, mkdir, etc. */
+    size_t struct_stat_size;   /**< Used for fstat/lstat. */
+    size_t char_size;          /**< Used for most path names. */
+    size_t off_t_size;         /**< Used for truncate. */
+    size_t int_size;           /**< Used for most file descriptors. */
+    size_t DataOperation_size; /**< Used for read/write operations. */
+
+    size_t TestOperation_size; /**< Meta */
+};
+
 /* These prototypes are only needed by gem5, not by FUSE. */
 #ifdef __cplusplus
 uint64_t ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestAddr, Addr resultAddr);
