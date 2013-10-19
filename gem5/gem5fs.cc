@@ -273,6 +273,23 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
 
             break;
         }
+        case Symlink:
+        {
+            /* FUSE FS sends name of link as input. */
+            char *link = new char[fileOp.structSize+1];
+            CopyOut(tc, link, inputAddr, fileOp.structSize+1);
+        
+            DPRINTF(gem5fs, "gem5fs: symlinking %s to %s\n", pathname, link);
+
+            int rv = ::symlink(pathname, link);
+
+            /* Returns 0 on success. */
+            SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
+
+            delete link;
+
+            break;
+        }
         case Rename:
         {
             /* New path is the input. */

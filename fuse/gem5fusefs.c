@@ -243,11 +243,7 @@ int gem5fs_rmdir(const char *path)
 /** Create a symbolic link */
 int gem5fs_symlink(const char *path, const char *link)
 {
-    int rv = 0;
-
-    printf("%s called\n", __func__);
-
-    return rv; 
+    return gem5fs_syscall(Symlink, path, (void*)link, strlen(link), NULL, NULL);
 }
 
 /** Rename a file */
