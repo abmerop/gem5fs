@@ -159,6 +159,15 @@ struct ChownOperation
     gid_t gid;
 };
 
+/*
+ *  Needed for sync operation
+ */
+struct SyncOperation
+{
+    uint8_t datasync;
+    int fd;
+};
+
 /* 
  *  This should include all possible data types being copied into
  *  or out of gem5. This is a quick sanity check to see if these
@@ -180,6 +189,7 @@ struct TestOperation
     size_t int_size;                  /**< Used for file descriptors. */
     size_t DataOperation_size;        /**< Used for read/write . */
     size_t ChownOperation_size;       /**< Used for chown . */
+    size_t SyncOperation_size;        /**< Used for fsync. */
 
     size_t TestOperation_size;         /**< Meta */
 };

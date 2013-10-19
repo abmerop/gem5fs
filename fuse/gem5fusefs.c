@@ -404,11 +404,12 @@ int gem5fs_release(const char *path, struct fuse_file_info *fi)
 /** Synchronize file contents */
 int gem5fs_fsync(const char *path, int datasync, struct fuse_file_info *fi)
 {
-    int rv = 0;
+    struct SyncOperation syncOp;
 
-    printf("%s called\n", __func__);
+    syncOp.datasync = (datasync ? 1 : 0);
+    syncOp.fd = fi->fh;
 
-    return rv; 
+    return gem5fs_syscall(Fsync, path, (void*)&syncOp, sizeof(struct SyncOperation), NULL, NULL);
 }
 
 /** Set extended attributes */
@@ -722,6 +723,7 @@ int main(int argc, char *argv[])
     testOp.int_size = sizeof(int);
     testOp.DataOperation_size = sizeof(struct DataOperation);
     testOp.ChownOperation_size = sizeof(struct ChownOperation);
+    testOp.SyncOperation_size = sizeof(struct SyncOperation);
     testOp.TestOperation_size = sizeof(struct TestOperation);
 
     test_rv = gem5fs_syscall(TestGem5, "", (void*)&testOp, sizeof(struct TestOperation), NULL, NULL);

@@ -205,6 +205,12 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
                 test_passed = false;
             }
 
+            if (testOp.SyncOperation_size != sizeof(struct SyncOperation))
+            {
+                warn("gem5fs: SyncOperation struct does not match guest's size.\n");
+                test_passed = false;
+            }
+
             /*
              *  If anything failed, we will send back an error code to
              *  the FUSE FS, which will decide to mount or not.
@@ -355,6 +361,23 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             /* Send the response directly. */
             SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
 
+            break;
+        }
+        case Fsync:
+        {
+            /* FUSE FS sends SyncOperation struct as input. */
+            struct SyncOperation syncOp;
+            CopyOut(tc, &syncOp, inputAddr, fileOp.structSize);
+
+            int rv;
+            if (syncOp.datasync == 1)
+                rv = ::fdatasync(syncOp.fd);
+            else
+                rv = ::fsync(syncOp.fd);
+
+            /* Success if rv == 0. */
+            SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
+            
             break;
         }
         case ReadDir:
