@@ -145,6 +145,12 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             /*
              *  For anything else just compare the struct value with sizeof.
              */
+            if (testOp.size_t_size != sizeof(size_t))
+            {
+                warn("gem5fs: size_t does not match guest's size.\n");
+                test_passed = false;
+            }
+
             if (testOp.mode_t_size != sizeof(mode_t))
             {
                 warn("gem5fs: mode_t does not match guest's size.\n");
@@ -206,6 +212,12 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             }
 
             if (testOp.SyncOperation_size != sizeof(struct SyncOperation))
+            {
+                warn("gem5fs: SyncOperation struct does not match guest's size.\n");
+                test_passed = false;
+            }
+
+            if (testOp.XAttrOperation_size != sizeof(struct XAttrOperation))
             {
                 warn("gem5fs: SyncOperation struct does not match guest's size.\n");
                 test_passed = false;
@@ -378,6 +390,99 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             /* Success if rv == 0. */
             SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
             
+            break;
+        }
+        case SetXAttr:
+        {
+            /* FUSE FS sends XAttrOperation as input. */
+            struct XAttrOperation xattrOp;
+            CopyOut(tc, &xattrOp, inputAddr, fileOp.structSize);
+
+            /* Copy out the name and value as well. */
+            char *name = new char[xattrOp.name_size+1];
+            char *value = new char[xattrOp.value_size+1];
+
+            CopyOut(tc, name, (Addr)xattrOp.name, xattrOp.name_size+1);
+            CopyOut(tc, value, (Addr)xattrOp.value, xattrOp.value_size+1);
+
+            /*
+             *  This will set the attribute on the symlink itself
+             *  if the file is a symlink. There doesn't seem to be
+             *  an interface for the user to specify which, so we
+             *  will always use lsetxattr over setxattr.
+             */
+            ssize_t rv = ::lsetxattr(pathane, name, value, xattrOp.value_size, xattrOp.flags);
+
+            /* Success if rv == 0. */
+            SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
+
+            delete name;
+            delete value;
+
+            break;
+        }
+        case GetXAttr:
+        {
+            /* FUSE FS sends XAttrOperation as input. */
+            struct XAttrOperation xattrOp;
+            CopyOut(tc, &xattrOp, inputAddr, fileOp.structSize);
+
+            /* Copy out the name of the attribute. */
+            char *name = new char[xattrOp.name_size+1];
+            CopyOut(tc, name, (Addr)xattrOp.name, xattrOp.name_size+1);
+
+            /* Create a temporary buffer for the value. */
+            char *value = new char[xattrOp.value_size+1];
+            ssize_t rv = ::lgetxattr(pathname, name, value, xattrOp.value_size);
+
+            /* Success if rv >= 0. */
+            if (rv >= 0)
+                CopyIn(tc, (Addr)xattrOp.value, value, xattrOp.value_size+1);
+
+            SendResponse(tc, resultAddr, &fileOp, (rv >= 0), NULL, 0);
+
+            delete name;
+            delete value;
+
+            break;
+        }
+        case ListXAttr:
+        {
+            /* FUSE FS sends XAttrOperation as input. */
+            struct XAttrOperation xattrOp;
+            CopyOut(tc, &xattrOp, inputAddr, fileOp.structSize);
+
+            /* Create a temporary buffer for the list. */
+            char *list = new char[xattrOp.value_size+1];
+            ssize_t rv = llistxattr(pathname, list, xattrOp.value_size);
+
+            /* Success if rv >= 0. */
+            if (rv >= 0)
+                CopyIn(tc, (Addr)xattrOp.value, list, xattrOp.value_size);
+
+            SendResponse(tc, resultAddr, &fileOp, (rv >= 0), NULL, 0);
+
+            delete list;
+
+            break;
+        }
+        case RemoveXAttr:
+        {
+            /* FUSE FS sends XAttrOperation as input. */
+            struct XAttrOperation xattrOp;
+            CopyOut(tc, &xattrOp, inputAddr, fileOp.structSize);
+
+            /* Copy out the name of the attribute to delete. */
+            char *name = new char[xattrOp.name_size+1];
+            CopyOut(tc, name, (Addr)xattrOp.name, xattrOp.name_size+1);
+
+            int rv = ::lremovexattr(pathname, name);
+
+            /* Success if rv == 0. */
+            SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
+
+            delete name;
+
             break;
         }
         case ReadDir:

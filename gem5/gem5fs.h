@@ -168,6 +168,18 @@ struct SyncOperation
     int fd;
 };
 
+/*
+ *  Needed for extended attributes
+ */
+struct XAttrOperation
+{
+    char *name;
+    char *value;
+    size_t name_size;
+    size_t value_size;
+    int flags;
+};
+
 /* 
  *  This should include all possible data types being copied into
  *  or out of gem5. This is a quick sanity check to see if these
@@ -179,6 +191,7 @@ struct SyncOperation
  */
 struct TestOperation
 {
+    size_t size_t_size;               /**< Used for most return values. */
     size_t mode_t_size;               /**< Used in chmod, mkdir, etc. */
     size_t uid_t_size;                /**< Used in chown */
     size_t gid_t_size;                /**< Used in chown */
@@ -190,6 +203,7 @@ struct TestOperation
     size_t DataOperation_size;        /**< Used for read/write . */
     size_t ChownOperation_size;       /**< Used for chown . */
     size_t SyncOperation_size;        /**< Used for fsync. */
+    size_t XAttrOperation_size;
 
     size_t TestOperation_size;         /**< Meta */
 };

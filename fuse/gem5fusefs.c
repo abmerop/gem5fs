@@ -415,41 +415,58 @@ int gem5fs_fsync(const char *path, int datasync, struct fuse_file_info *fi)
 /** Set extended attributes */
 int gem5fs_setxattr(const char *path, const char *name, const char *value, size_t size, int flags)
 {
-    int rv = 0;
+    struct XAttrOperation xattrOp;
 
-    printf("%s called\n", __func__);
+    xattrOp.name = (char*)name;
+    xattrOp.value = (char*)value;
+    xattrOp.name_size = strlen(name);
+    xattrOp.value_size = size;
+    xattrOp.flags = flags;
 
-    return rv; 
+    return gem5fs_syscall(SetXAttr, path, (void*)&xattrOp, sizeof(struct XAttrOperation), NULL, NULL);
 }
 
 /** Get extended attributes */
 int gem5fs_getxattr(const char *path, const char *name, char *value, size_t size)
 {
-    int rv = 0;
+    struct XAttrOperation xattrOp;
 
-    printf("%s called\n", __func__);
+    xattrOp.name = (char*)name;
+    xattrOp.value = (char*)value;
+    xattrOp.name_size = strlen(name);
+    xattrOp.value_size = size;
+    xattrOp.flags = 0;
 
-    return rv; 
+    /* The pseudo instruction will copy data into value => NULL response */
+    return gem5fs_syscall(GetXAttr, path, (void*)&xattrOp, sizeof(struct XAttrOperation), NULL, NULL);
 }
 
 /** List extended attributes */
 int gem5fs_listxattr(const char *path, char *list, size_t size)
 {
-    int rv = 0;
+    struct XAttrOperation xattrOp;
 
-    printf("%s called\n", __func__);
+    xattrOp.name = NULL;;
+    xattrOp.value = list;
+    xattrOp.name_size = 0;
+    xattrOp.value_size = size;
+    xattrOp.flags = 0;
 
-    return rv; 
+    return gem5fs_syscall(ListXAttr, path, (void*)&xattrOp, sizeof(struct XAttrOperation), NULL, NULL);
 }
 
 /** Remove extended attributes */
 int gem5fs_removexattr(const char *path, const char *name)
 {
-    int rv = 0;
+    struct XAttrOperation xattrOp;
 
-    printf("%s called\n", __func__);
+    xattrOp.name = (char*)name;
+    xattrOp.value = NULL;
+    xattrOp.name_size = strlen(name);
+    xattrOp.value_size = 0;
+    xattrOp.flags = 0;
 
-    return rv; 
+    return gem5fs_syscall(RemoveXAttr, path, (void*)&xattrOp, sizeof(struct XAttrOperation), NULL, NULL);
 }
 
 int gem5fs_opendir(const char *path, struct fuse_file_info *fi)
@@ -713,6 +730,7 @@ int main(int argc, char *argv[])
     struct TestOperation testOp;
     int test_rv = 0;
 
+    testOp.size_t_size = sizeof(size_t);
     testOp.mode_t_size = sizeof(mode_t);
     testOp.uid_t_size = sizeof(uid_t);
     testOp.gid_t_size = sizeof(gid_t);
@@ -725,6 +743,7 @@ int main(int argc, char *argv[])
     testOp.ChownOperation_size = sizeof(struct ChownOperation);
     testOp.SyncOperation_size = sizeof(struct SyncOperation);
     testOp.TestOperation_size = sizeof(struct TestOperation);
+    testOp.XAttrOperation_size = sizeof(struct XAttrOperation);
 
     test_rv = gem5fs_syscall(TestGem5, "", (void*)&testOp, sizeof(struct TestOperation), NULL, NULL);
     if (test_rv != 0)
