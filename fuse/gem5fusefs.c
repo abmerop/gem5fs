@@ -375,11 +375,17 @@ int gem5fs_write(const char *path, const char *buf, size_t size, off_t offset,
 /** Get file system statistics */
 int gem5fs_statfs(const char *path, struct statvfs *statv)
 {
-    int rv = 0;
+    int rv;
+    int response_size;
+    struct statvfs *tmpStat;
 
-    printf("%s called\n", __func__);
+    if ((rv = gem5fs_syscall(GetStats, path, NULL, 0, (uint8_t**)&tmpStat, &response_size)) == 0)
+    {
+        memcpy(statv, tmpStat, response_size);
+        free(tmpStat);
+    }
 
-    return rv; 
+    return rv;
 }
 
 /** Possibly flush cached data */
@@ -710,6 +716,7 @@ int main(int argc, char *argv[])
     testOp.uid_t_size = sizeof(uid_t);
     testOp.gid_t_size = sizeof(gid_t);
     testOp.struct_stat_size = sizeof(struct stat);
+    testOp.struct_statvfs_size = sizeof(struct statvfs);
     testOp.char_size = sizeof(char);
     testOp.off_t_size = sizeof(off_t);
     testOp.int_size = sizeof(int);

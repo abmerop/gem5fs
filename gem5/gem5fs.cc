@@ -169,6 +169,12 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
                 test_passed = false;
             }
 
+            if (testOp.struct_statvfs_size != sizeof(struct statvfs))
+            {
+                warn("gem5fs: stat struct does not match guest's size.\n");
+                test_passed = false;
+            }
+
             if (testOp.char_size != sizeof(char))
             {
                 warn("gem5fs: char does not match guest's size.\n");
@@ -322,6 +328,17 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
 
             /* Send the response. */
             BufferResponse(tc, resultAddr, &fileOp, (rv >= 0), (uint8_t*)&rv, sizeof(ssize_t));
+
+            break;
+        }
+        case GetStats:
+        {
+            /* success if rv == 0. */
+            struct statvfs *statbuf = new struct statvfs;
+            int rv = ::statvfs(pathname, statbuf);
+
+            /* Save response for FUSE GetResult. */
+            BufferResponse(tc, resultAddr, &fileOp, (rv == 0), (uint8_t*)statbuf, sizeof(struct statvfs));
 
             break;
         }

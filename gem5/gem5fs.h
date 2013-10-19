@@ -59,6 +59,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <sys/xattr.h>
 
 
@@ -173,6 +174,7 @@ struct TestOperation
     size_t uid_t_size;                /**< Used in chown */
     size_t gid_t_size;                /**< Used in chown */
     size_t struct_stat_size;          /**< Used for fstat/lstat. */
+    size_t struct_statvfs_size;       /**< Used for statfs. */
     size_t char_size;                 /**< Used for most path names. */
     size_t off_t_size;                /**< Used for truncate. */
     size_t int_size;                  /**< Used for file descriptors. */
