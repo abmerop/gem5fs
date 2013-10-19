@@ -243,7 +243,7 @@ int gem5fs_rmdir(const char *path)
 /** Create a symbolic link */
 int gem5fs_symlink(const char *path, const char *link)
 {
-    return gem5fs_syscall(Symlink, path, (void*)link, strlen(link), NULL, NULL);
+    return gem5fs_syscall(MakeSymLink, path, (void*)link, strlen(link), NULL, NULL);
 }
 
 /** Rename a file */
@@ -555,11 +555,12 @@ int gem5fs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 
 int gem5fs_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi)
 {
-    int rv = 0;
+    struct ftruncOperation ftOp;
 
-    printf("%s called\n", __func__);
+    ftOp.length = offset;
+    ftOp.fd = fi->fh;
 
-    return rv; 
+    return gem5fs_syscall(Ftruncate, path, (void*)&ftOp, sizeof(struct ftruncOperation), NULL, NULL);
 }
 
 int gem5fs_fgetattr(const char *path, struct stat *statbuf, struct fuse_file_info *fi)
@@ -738,8 +739,9 @@ int main(int argc, char *argv[])
     testOp.DataOperation_size = sizeof(struct DataOperation);
     testOp.ChownOperation_size = sizeof(struct ChownOperation);
     testOp.SyncOperation_size = sizeof(struct SyncOperation);
-    testOp.TestOperation_size = sizeof(struct TestOperation);
     testOp.XAttrOperation_size = sizeof(struct XAttrOperation);
+    testOp.ftruncOperation_size = sizeof(struct ftruncOperation);
+    testOp.TestOperation_size = sizeof(struct TestOperation);
 
     test_rv = gem5fs_syscall(TestGem5, "", (void*)&testOp, sizeof(struct TestOperation), NULL, NULL);
     if (test_rv != 0)

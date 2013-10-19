@@ -219,7 +219,13 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
 
             if (testOp.XAttrOperation_size != sizeof(struct XAttrOperation))
             {
-                warn("gem5fs: SyncOperation struct does not match guest's size.\n");
+                warn("gem5fs: XAttrOperation struct does not match guest's size.\n");
+                test_passed = false;
+            }
+
+            if (testOp.ftruncOperation_size != sizeof(struct ftruncOperation))
+            {
+                warn("gem5fs: ftruncOperation struct does not match guest's size.\n");
                 test_passed = false;
             }
 
@@ -273,7 +279,7 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
 
             break;
         }
-        case Symlink:
+        case MakeSymLink:
         {
             /* FUSE FS sends name of link as input. */
             char *link = new char[fileOp.structSize+1];
@@ -428,7 +434,7 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
              *  an interface for the user to specify which, so we
              *  will always use lsetxattr over setxattr.
              */
-            ssize_t rv = ::lsetxattr(pathane, name, value, xattrOp.value_size, xattrOp.flags);
+            ssize_t rv = ::lsetxattr(pathname, name, value, xattrOp.value_size, xattrOp.flags);
 
             /* Success if rv == 0. */
             SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
@@ -643,6 +649,19 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             
             /* Save the response data for GetResult. */
             BufferResponse(tc, resultAddr, &fileOp, (*fd >= 0), (uint8_t*)fd, sizeof(int));
+            break;
+        }
+        case Ftruncate:
+        {
+            /* FUSE FS sends ftruncOperation struct as input. */
+            struct ftruncOperation ftOp;
+            CopyOut(tc, &ftOp, inputAddr, fileOp.structSize);
+
+            int rv = ::ftruncate(ftOp.fd, ftOp.length);
+
+            /* Success if rv >= 0 */
+            SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
+
             break;
         }
         case FGetAttr:

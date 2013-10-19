@@ -180,6 +180,15 @@ struct XAttrOperation
     int flags;
 };
 
+/*
+ *  Needed for ftruncate
+ */
+struct ftruncOperation
+{
+    off_t length;
+    int fd;
+};
+
 /* 
  *  This should include all possible data types being copied into
  *  or out of gem5. This is a quick sanity check to see if these
@@ -203,9 +212,10 @@ struct TestOperation
     size_t DataOperation_size;        /**< Used for read/write . */
     size_t ChownOperation_size;       /**< Used for chown . */
     size_t SyncOperation_size;        /**< Used for fsync. */
-    size_t XAttrOperation_size;
+    size_t XAttrOperation_size;       /**< Used for extended attributes. */
+    size_t ftruncOperation_size;      /**< Used for ftruncate, */
 
-    size_t TestOperation_size;         /**< Meta */
+    size_t TestOperation_size;        /**< Meta */
 };
 
 /* These prototypes are only needed by gem5, not by FUSE. */
