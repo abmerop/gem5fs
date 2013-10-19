@@ -277,11 +277,12 @@ int gem5fs_chmod(const char *path, mode_t mode)
 /** Change the owner and group of a file */
 int gem5fs_chown(const char *path, uid_t uid, gid_t gid)
 {
-    int rv = 0;
+    struct ChownOperation chownOp;
 
-    printf("%s called\n", __func__);
+    chownOp.uid = uid;
+    chownOp.gid = gid;
 
-    return rv; 
+    return gem5fs_syscall(ChangeOwner, path, (void*)&chownOp, sizeof(struct ChownOperation), NULL, NULL);
 }
 
 /** Change the size of a file */
@@ -706,11 +707,14 @@ int main(int argc, char *argv[])
     int test_rv = 0;
 
     testOp.mode_t_size = sizeof(mode_t);
+    testOp.uid_t_size = sizeof(uid_t);
+    testOp.gid_t_size = sizeof(gid_t);
     testOp.struct_stat_size = sizeof(struct stat);
     testOp.char_size = sizeof(char);
     testOp.off_t_size = sizeof(off_t);
     testOp.int_size = sizeof(int);
     testOp.DataOperation_size = sizeof(struct DataOperation);
+    testOp.ChownOperation_size = sizeof(struct ChownOperation);
     testOp.TestOperation_size = sizeof(struct TestOperation);
 
     test_rv = gem5fs_syscall(TestGem5, "", (void*)&testOp, sizeof(struct TestOperation), NULL, NULL);

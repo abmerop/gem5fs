@@ -138,12 +138,24 @@ struct FileOperation
     int errnum;                    // Copy of errno from host
 };
 
+/*
+ *  Used for read and write operations
+ */
 struct DataOperation
 {
     int hostfd;
     size_t size;
     off_t offset;
     const char *data;
+};
+
+/*
+ *  Needed for chown operation
+ */
+struct ChownOperation
+{
+    uid_t uid;
+    gid_t gid;
 };
 
 /* 
@@ -157,14 +169,17 @@ struct DataOperation
  */
 struct TestOperation
 {
-    size_t mode_t_size;        /**< Used in chmod, mkdir, etc. */
-    size_t struct_stat_size;   /**< Used for fstat/lstat. */
-    size_t char_size;          /**< Used for most path names. */
-    size_t off_t_size;         /**< Used for truncate. */
-    size_t int_size;           /**< Used for most file descriptors. */
-    size_t DataOperation_size; /**< Used for read/write operations. */
+    size_t mode_t_size;               /**< Used in chmod, mkdir, etc. */
+    size_t uid_t_size;                /**< Used in chown */
+    size_t gid_t_size;                /**< Used in chown */
+    size_t struct_stat_size;          /**< Used for fstat/lstat. */
+    size_t char_size;                 /**< Used for most path names. */
+    size_t off_t_size;                /**< Used for truncate. */
+    size_t int_size;                  /**< Used for file descriptors. */
+    size_t DataOperation_size;        /**< Used for read/write . */
+    size_t ChownOperation_size;       /**< Used for chown . */
 
-    size_t TestOperation_size; /**< Meta */
+    size_t TestOperation_size;         /**< Meta */
 };
 
 /* These prototypes are only needed by gem5, not by FUSE. */

@@ -151,6 +151,18 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
                 test_passed = false;
             }
 
+            if (testOp.uid_t_size != sizeof(uid_t))
+            {
+                warn("gem5fs: uid_t does not match guest's size.\n");
+                test_passed = false;
+            }
+
+            if (testOp.gid_t_size != sizeof(gid_t))
+            {
+                warn("gem5fs: gid_t does not match guest's size.\n");
+                test_passed = false;
+            }
+
             if (testOp.struct_stat_size != sizeof(struct stat))
             {
                 warn("gem5fs: stat struct does not match guest's size.\n");
@@ -178,6 +190,12 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             if (testOp.DataOperation_size != sizeof(struct DataOperation))
             {
                 warn("gem5fs: DataOperation struct does not match guest's size.\n");
+                test_passed = false;
+            }
+
+            if (testOp.ChownOperation_size != sizeof(struct ChownOperation))
+            {
+                warn("gem5fs: ChownOperation struct does not match guest's size.\n");
                 test_passed = false;
             }
 
@@ -417,6 +435,20 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             /* Save the response data for GetResult. */
             SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
             
+            break;
+        }
+        case ChangeOwner:
+        {
+            /* ChownOperation is passed as input. */
+            struct ChownOperation chownOp;
+            CopyOut(tc, &chownOp, inputAddr, fileOp.structSize);
+
+            /* Success if rv == 0 */
+            int rv = ::chown(pathname, chownOp.uid, chownOp.gid);
+
+            /* Send response rv. */
+            SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
+
             break;
         }
         case Access:
