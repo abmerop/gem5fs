@@ -282,7 +282,7 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             uint8_t *tmpBuf = new uint8_t[dataOp.size];
             ssize_t rv = pread(dataOp.hostfd, tmpBuf, dataOp.size, dataOp.offset);
 
-            DPRINTF(gem5fs, "gem5fs: read %d bytes (%s) from fd %d\n", rv, tmpBuf, dataOp.hostfd);
+            DPRINTF(gem5fs, "gem5fs: read %d bytes from fd %d\n", rv, dataOp.hostfd);
 
             /* Save the response data for GetResult. */
             BufferResponse(tc, resultAddr, &fileOp, (rv >= 0), tmpBuf, rv);
@@ -383,6 +383,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             mode_t dirMode;
             CopyOut(tc, &dirMode, inputAddr, fileOp.structSize);
 
+            DPRINTF(gem5fs, "gem5fs: Making directory with mode %d (%X)\n", dirMode, dirMode);
+
             /* Call mkdir */ 
             int rv = ::mkdir(pathname, dirMode);
 
@@ -406,6 +408,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             /* mkdir requires input data. */
             mode_t chmodMode;
             CopyOut(tc, &chmodMode, inputAddr, fileOp.structSize);
+
+            DPRINTF(gem5fs, "gem5fs: Changing %s permissions to mode %d (%X)\n", pathname, chmodMode, chmodMode);
 
             /* Call mkdir */ 
             int rv = ::chmod(pathname, chmodMode);

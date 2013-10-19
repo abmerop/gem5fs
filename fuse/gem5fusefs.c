@@ -223,6 +223,8 @@ int gem5fs_mknod(const char *path, mode_t mode, dev_t dev)
 /** Create a directory */
 int gem5fs_mkdir(const char *path, mode_t mode)
 {
+    printf("gem5fs_mkdir with mode %d (%X)\n", mode, mode);
+
     return gem5fs_syscall(MakeDirectory, path, (void*)&mode, sizeof(mode_t), NULL, NULL); 
 }
 
@@ -267,7 +269,9 @@ int gem5fs_link(const char *path, const char *newpath)
 /** Change the permission bits of a file */
 int gem5fs_chmod(const char *path, mode_t mode)
 {
-    return gem5fs_syscall(ChangePermission, path, NULL, 0, NULL, NULL); 
+    printf("gem5fs_chmod to mode %d (%X)\n", mode, mode);
+
+    return gem5fs_syscall(ChangePermission, path, (void*)&mode, sizeof(mode_t), NULL, NULL); 
 }
 
 /** Change the owner and group of a file */
@@ -331,7 +335,7 @@ int gem5fs_read(const char *path, char *buf, size_t size, off_t offset, struct f
 
     if ((rv = gem5fs_syscall(Read, path, (void*)&dataOp, sizeof(struct DataOperation), (uint8_t**)&tmpBuf, &bufSize)) == 0)
     {
-        printf("gem5fs_read got %d bytes: '%s'\n", bufSize, tmpBuf);
+        printf("gem5fs_read got %d bytes\n", bufSize);
         memcpy(buf, tmpBuf, bufSize);
         free(tmpBuf);
     }
