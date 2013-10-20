@@ -1,9 +1,9 @@
 What is gem5fs?
 ===============
 
-Short Version: gem5fs allows you to access files on the host's (machine running gem5) filesystem.
+**Short Version**: gem5fs allows you to access files on the host's (machine running gem5) filesystem.
 
-Long Version: gem5fs is a FUSE filesystem that runs within gem5 (the "guest") and makes heavy use of a gem5 pseudo instruction to interface files on the system running gem5 (the "host").
+**Long Version**: gem5fs is a FUSE filesystem that runs within gem5 (the "guest") and makes heavy use of a gem5 pseudo instruction to interface files on the system running gem5 (the "host").
 
 
 How does this work?
