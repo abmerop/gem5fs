@@ -306,6 +306,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
 
             SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
 
+            delete newpath;
+
             break;
         }
         case Truncate:
@@ -363,12 +365,15 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             char *tmpBuf = new char[dataOp.size];
             CopyOut(tc, tmpBuf, (Addr)dataOp.data, dataOp.size);
 
-            ssize_t rv = pwrite(dataOp.hostfd, tmpBuf, dataOp.size, dataOp.offset);
+            ssize_t *rv = new ssize_t;
+            *rv = pwrite(dataOp.hostfd, tmpBuf, dataOp.size, dataOp.offset);
 
             DPRINTF(gem5fs, "gem5fs: Writing %d bytes (%s) to fd %d returned %d\n", dataOp.size, tmpBuf, dataOp.hostfd, rv);
 
             /* Send the response. */
-            BufferResponse(tc, resultAddr, &fileOp, (rv >= 0), (uint8_t*)&rv, sizeof(ssize_t));
+            BufferResponse(tc, resultAddr, &fileOp, (*rv >= 0), (uint8_t*)rv, sizeof(ssize_t));
+
+            delete tmpBuf;
 
             break;
         }
