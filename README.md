@@ -15,9 +15,9 @@ Currently gem5fs works with the X86 architecture. You will need to make 3 change
  2. Modified disk image with fuse libraries
  3. A patched gem5 with the gem5fs patch
 
-A precompiled linux 2.6.22-smp kernel is provided as well as a tarball with all the extra files needed for the disk image. For quick setup, only the patch in step 3 needs to be applied, and the files extracted to the disk image. The rest can be modified in the command line. 
+A precompiled linux 2.6.22-smp kernel is provided as well as a tarball with all the extra files needed for the disk image. For quick setup, only the patch in step 3 needs to be applied and the files extracted to the disk image. The rest can be modified in the gem5 command line. 
 
-More advanced instructions are below for anyone wanting to different kernel version or the details on mounting the FUSE filesystem within gem5.
+More advanced instructions are below for anyone wanting a different kernel version and/or the details on mounting the FUSE filesystem within gem5.
 
 Quick Setup
 ===========
@@ -27,15 +27,15 @@ Quick Setup
  3. Change directory to the ROOT of the gem5 disk image and extract the disk image files using `tar vxzf /path/to/gem5fs-dist-1.0.0.tar.gz`
  4. Obtain the gem5fs patch using git: `git clone https://bitbucket.org/mrp5060/gem5fs.git`
  5. Change directory to your gem5 installation and apply the patch: `hg qimport /path/to/gem5fs/patch/gem5fs.patch ; hg qpush`
- 6. Recompile gem5 using the EXTRAS flag with the path to gem5fs. git repo (e.g., `scons build/X86/gem5.opt -j 8 EXTRAS=/path/to/gem5fs`)
+ 6. Recompile gem5 using the EXTRAS flag with the path to gem5fs git repository (e.g., `scons build/X86/gem5.opt -j 8 EXTRAS=/path/to/gem5fs`)
 
 You are now ready to go! You can boot up gem5 using fullsystem mode, for example:
 
     build/X86/gem5.opt configs/example/fs.py --disk-image=my-modified-disk.img --kernel=x86_64-vmlinux-2.6.22.fuse.smp 
 
-Once the system is booted, you can use m5term to mount the host filesystem:
+Once the system is booted, you can mount the host filesystem from within m5term:
 
-    /fues/bin/mount.sh
+    /fuse/bin/mount.sh
 
 You should now be able to see the host's filesystem mounted at `/host`!
 
@@ -74,7 +74,7 @@ Before mounting gem5fs, you will need to create the FUSE character device. This 
 
     mknod /dev/fuse -m 0666 c 10 229
 
-You can place this in your `/etc/init.d/rcS` file (the standard boot script for gem5 disk images), or within a script to mount the FUSE filesystem. Below is the contents of the file `/fuse/bin/mount.sh` provided by the quick setup distribution:
+You can place this in your `/etc/init.d/rcS` file (the standard boot script for gem5 disk images), or within a script to mount the FUSE filesystem. Below are the contents of the file `/fuse/bin/mount.sh` provided by the quick setup distribution:
 
     #!/bin/bash
 
@@ -97,7 +97,7 @@ Here you can change `/host` to something else. You can also paste this into the 
 Limitations
 ===========
 
-The FUSE API provides over 40 different types of file operations (i.e., `read()`, `write()`, `open()`, `close()`, etc). gem5fs currently provides the most common operations, but there are a few operations that are not supported, are not planned to be supported, or have some caveats to be aware of. These are listed below.
+The FUSE API provides over 40 different types of file operations (i.e., `read()`, `write()`, `open()`, `close()`, etc). gem5fs currently provides the most common operations, but there are a few operations that are not supported, are not planned to be supported, or have some caveats of which to be aware.
 
 Some operations may have undefined behavior if they operate outside of the gem5 disk image. These operations are `mknod`, `link`, `ioctl`, and `lock`. 
 
@@ -106,7 +106,7 @@ Some operations may have undefined behavior if they operate outside of the gem5 
  * `lock` - Similar to link, it is not clear what will happen if a file outside of gem5 is locked and gem5 exits.
  * `ioctl` - This is normally used to control register devices, which will not be supported on the host from within gem5.
 
-These operations *may* be useful, so they have some planned implementation: `poll`, `fallocate`, and `bmap`.
+These operations *may* be useful, so they have some planned implementation: `poll`, `utimensat`, `fallocate`, and `bmap`.
 
  * `bmap` - This function gets a block map of the filesystem. It may be used by some tools such as `df`.
  * `fallocate` - Use to resize a files space without adding contents to the file.
@@ -138,18 +138,18 @@ Untested Operations
 
 The following commands have no test programs: `statvfs`, `flush`, `fsync`, `fsyncdir`. 
 
- * `statvfs` - Used for program like `df`.
+ * `statvfs` - Used for programs like `df`.
  * `flush` - gem5fs does not cache data, so testing is not necessary.
  * `fsync/fsyncdir` - It is difficult to get a before and after of unsynced data to confirm this works.
 
 Long Tests
 ----------
 
-Some real-world tests were also performed. We ran some spec2006 benchmarks located on the host.s filesystem from within gem5 and compared the outputs of the test inputs to the test outputs. Below is the process of testing 403.gcc:
+Some real-world tests were also performed. SPEC2006 benchmarks located on the host's filesystem were run from within gem5. The outputs of the test inputs were compared to the test outputs provided with the SPEC distribution. Below is an example of the testing process for 403.gcc:
 
     # ./403.gcc_base.x86-gcc ../403.gcc/data/test/input/cccp.i -o cccp.s
 
-Checking from outside gem5:
+The outputs were compared outside of gem5 using the diff tool:
 
     $ diff cccp.s ../403.gcc/data/test/output/cccp.s
     $
@@ -164,7 +164,7 @@ Currently only X86 is supported. However, other architectures can easily be adde
 Debugging
 =========
 
-gem5fs supports debugging in two ways. The FUSE filesystem can be mounted within gem5 in debug mode using `/fuse/bin/mount.sh -d`. Additionally, gem5 debug flags can be used to output debugging data using `build/X86/gem5.opt --debug-flags=gem5fs`. Further debugging support by writing to an on-host log file is currently planned but not implemented.
+gem5fs supports debugging in two ways. The FUSE filesystem can be mounted within gem5 in debug mode using `/fuse/bin/mount.sh -d`. Additionally, gem5 debug flags can be used to output debugging data using `build/X86/gem5.opt --debug-flags=gem5fs`. Further debugging support is currently planned by writing to an on-host log file but this is not yet implemented.
 
 Changelog
 =========
