@@ -11,9 +11,9 @@ How does this work?
 
 You will need 3 changes to the standard gem5 distribution to get gem5fs up and running:
 
-(1) A kernel with FUSE support
-(2) Modified disk image with fuse libraries
-(3) A patched gem5 with the gem5fs patch
+ 1. A kernel with FUSE support
+ 2. Modified disk image with fuse libraries
+ 3. A patched gem5 with the gem5fs patch
 
 A precompiled linux 2.6.22-smp kernel is provided as well as a tarball with all the extra files needed for the disk image. For quick setup, only the patch in step 3 needs to be applied, and the files extracted to the disk image. The rest can be modified in the command line. 
 
@@ -22,12 +22,12 @@ More advanced instructions are below for anyone wanting to different kernel vers
 Quick Setup
 ===========
 
-(1) Download the linux kernel from <http://gem5.nvmain.org/gem5fs/kernels/> and download the disk image files from <http://gem5.nvmain.org/gem5fs/dist/>. 
-(2) Mount your gem5 disk image. See the gem5 documentation at <http://gem5.org/Disk_images> for details.
-(3) Change directory to the ROOT of the gem5 disk image and extract the disk image files using `tar vxzf /path/to/gem5fs-dist-1.0.0.tar.gz
-(4) Obtain the gem5fs patch using git: `git clone https://bitbucket.org/mrp5060/gem5fs.git`
-(5) Change directory to your gem5 installation and apply the patch: `hg qimport /path/to/gem5fs/patch/gem5fs.patch ; hg qpush`
-(6) Recompile gem5 using the EXTRAS flag with the path to gem5fs. git repo (e.g., `scons build/X86/gem5.opt -j 8 EXTRAS=/path/to/gem5fs`)
+ 1. Download the linux kernel from <http://gem5.nvmain.org/gem5fs/kernels/> and download the disk image files from <http://gem5.nvmain.org/gem5fs/dist/>. 
+ 2. Mount your gem5 disk image. See the gem5 documentation at <http://gem5.org/Disk_images> for details.
+ 3. Change directory to the ROOT of the gem5 disk image and extract the disk image files using `tar vxzf /path/to/gem5fs-dist-1.0.0.tar.gz`
+ 4. Obtain the gem5fs patch using git: `git clone https://bitbucket.org/mrp5060/gem5fs.git`
+ 5. Change directory to your gem5 installation and apply the patch: `hg qimport /path/to/gem5fs/patch/gem5fs.patch ; hg qpush`
+ 6. Recompile gem5 using the EXTRAS flag with the path to gem5fs. git repo (e.g., `scons build/X86/gem5.opt -j 8 EXTRAS=/path/to/gem5fs`)
 
 You are now ready to go! You can boot up gem5 using fullsystem mode, for example:
 
