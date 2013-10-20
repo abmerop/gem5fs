@@ -160,3 +160,13 @@ Other Architectures
 ===================
 
 Currently only X86 is supported. However, other architectures can easily be added. The only requirement is that the architecture supports pseudo instructions with 3 operands.
+
+Debugging
+=========
+
+gem5fs supports debugging in two ways. The FUSE filesystem can be mounted within gem5 in debug mode using `/fuse/bin/mount.sh -d`. Additionally, gem5 debug flags can be used to output debugging data using `build/X86/gem5.opt --debug-flags=gem5fs`. Further debugging support by writing to an on-host log file is currently planned but not implemented.
+
+Changelog
+=========
+
+ * 0.99.0 - First release of gem5fs. Test tools are not available in this distribution. Poll, fallocate, and bmap are not supported. On-host debug logging is not yet complete.
