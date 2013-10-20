@@ -84,13 +84,11 @@ typedef enum
     TestGem5,
     GetAttr,
     ReadLink,
-    MakeNode,
     MakeDirectory,
     Unlink,
     RemoveDirectory,
     MakeSymLink,
     Rename,
-    MakeLink,
     ChangePermission,
     ChangeOwner,
     Truncate,
@@ -113,7 +111,6 @@ typedef enum
     Create,
     Ftruncate,
     FGetAttr,
-    Lock,
     GetResult
 } Operation;
 
