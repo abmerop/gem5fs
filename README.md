@@ -9,7 +9,7 @@ What is gem5fs?
 How does this work?
 ===================
 
-You will need 3 changes to the standard gem5 distribution to get gem5fs up and running:
+Currently gem5fs works with the X86 architecture. You will need to make 3 changes to the standard gem5 distribution to get gem5fs up and running:
 
  1. A kernel with FUSE support
  2. Modified disk image with fuse libraries
@@ -156,3 +156,7 @@ Checking from outside gem5:
 
 (No output implies the files are the same, i.e., the test passed!)
 
+Other Architectures
+===================
+
+Currently only X86 is supported. However, other architectures can easily be added. The only requirement is that the architecture supports pseudo instructions with 3 operands.
