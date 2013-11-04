@@ -159,7 +159,7 @@ The outputs were compared outside of gem5 using the diff tool:
 Other Architectures
 ===================
 
-Currently only X86 is supported. However, other architectures can easily be added. The only requirement is that the architecture supports pseudo instructions with 3 operands.
+Currently only X86 is supported. However, other architectures can easily be added. The only requirement is that the architecture supports pseudo instructions with 3 operands. You will need to cross-compile the kernel for your architecture with fuse support, and use the `--target` option for scons to give the base name of the toolchain (for example, if alpha's GCC binary is `alpha-unknown-linux-gcc`, use `--target=alpha-unknown-linux` and be sure this binary is in your `$PATH` environment variable).
 
 Debugging
 =========
