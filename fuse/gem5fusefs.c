@@ -55,6 +55,32 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/xattr.h>
+#include <sys/mman.h>
+
+#ifdef M5OP_ADDR
+void *m5_mem = NULL;
+#endif
+
+/* Copied from m5.c -- Hopefully this is moved to it's own header/source pair someday. */
+static void
+map_m5_mem()
+{
+#ifdef M5OP_ADDR
+    int fd;
+
+    fd = open("/dev/mem", O_RDWR | O_SYNC);
+    if (fd == -1) {
+        perror("Can't open /dev/mem");
+        exit(1);
+    }
+
+    m5_mem = mmap(NULL, 0x10000, PROT_READ | PROT_WRITE, MAP_SHARED, fd, M5OP_ADDR);
+    if (!m5_mem) {
+        perror("Can't mmap /dev/mem");
+        exit(1);
+    }
+#endif
+}
 
 /** Return error as -errno to caller */
 static int gem5fs_error(const char *operation, int error)
@@ -614,24 +640,6 @@ int gem5fs_poll(const char *path, struct fuse_file_info *ffi, struct fuse_pollha
     return rv;
 }
 
-int gem5fs_write_buf(const char *path, struct fuse_bufvec *buf, off_t off, struct fuse_file_info *ffi)
-{
-    int rv = 0;
-
-    printf("gem5fs_write_buf called\n");
-
-    return rv;
-}
-
-int gem5fs_read_buf(const char *path, struct fuse_bufvec **bufp, size_t size, off_t off, struct fuse_file_info *ffi)
-{
-    int rv = 0;
-
-    printf("%s called\n", __func__);
-
-    return rv;
-}
-
 int gem5fs_flock(const char *path, struct fuse_file_info *ffi, int op)
 {
     int rv = 0;
@@ -689,10 +697,10 @@ struct fuse_operations gem5fs_oper = {
   .bmap = gem5fs_bmap,
   .ioctl = gem5fs_ioctl,
   .poll = gem5fs_poll,
-  .write_buf = NULL,              // Call write instead
-  .read_buf = NULL,               // Call read instead
-  .flock = gem5fs_flock,
-  .fallocate = gem5fs_fallocate
+//  .write_buf = NULL,              // Call write instead
+//  .read_buf = NULL,               // Call read instead
+//  .flock = gem5fs_flock,
+//  .fallocate = gem5fs_fallocate
 
 };
 
@@ -719,9 +727,17 @@ int main(int argc, char *argv[])
         abort();
     }
 
+    /* mmap m5op memory space if needed. */
+    map_m5_mem();
+
     /* Determine the mountpoint of the filesystem, e.g., '/host' */
     gem5fs_data->rootdir = realpath(argv[argc-1], NULL);
     printf("gem5fs attempting mount at '%s'.\n", gem5fs_data->rootdir);
+
+    /* Tell gem5 the mountpoint. */
+    int set_rv = 0;
+
+    set_rv = gem5fs_syscall(SetMountpoint, "", (void*)gem5fs_data->rootdir, strlen(gem5fs_data->rootdir)+1, NULL, NULL);
     
     /* Check sizes */
     struct TestOperation testOp;

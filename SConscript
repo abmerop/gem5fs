@@ -58,3 +58,8 @@ if 'BUILD' in env and env['BUILD'] == "gem5fs":
     FuseSource('fuse/gem5fusefs.c')
     FuseSource('%s/util/m5/m5op_%s.S' % (env.root, env['ARCH']))
 
+    TestSource('tests/test_dir.c')
+    TestSource('tests/test_file.c')
+    TestSource('tests/test_link.c')
+    TestSource('tests/test_mkdir.c')
+

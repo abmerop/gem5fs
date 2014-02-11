@@ -46,6 +46,8 @@
 
 using namespace gem5fs;
 
+char mountpoint[PATH_MAX];
+
 uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestAddr, Addr resultAddr)
 {
     uint64_t result = 0;
@@ -67,7 +69,6 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
         strncpy(pathname, "/\0", 2);
     }
 
-    /* TODO: Make these gem5 DPRINTFs */
     DPRINTF(gem5fs, "\ngem5fs: virtual address is %p\n", requestAddr);
     DPRINTF(gem5fs, "gem5fs: oper is %d\n", fileOp.oper);
     DPRINTF(gem5fs, "gem5fs: opType is %d\n", fileOp.opType);
@@ -237,8 +238,25 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
 
             break;
         }
+        case SetMountpoint:
+        {
+            /* FUSE sends the mountpoint as a char array. */
+            CopyOut(tc, mountpoint, inputAddr, fileOp.structSize+1);
+
+            SendResponse(tc, resultAddr, &fileOp, true, NULL, 0);
+
+            break;
+        }
+        case GetMountpoint:
+        {
+            BufferResponse(tc, resultAddr, &fileOp, true, (uint8_t*)mountpoint, strlen(mountpoint)+1);
+
+            break;
+        }
         case GetAttr:
         {
+            DPRINTF(gem5fs, "gem5fs: reading attributes on %s\n", pathname);
+
             /*
              *  lstat returns 0 on success, -1 on failure and errno is
              *  set. The stat struct does not appear to contain any pointers
@@ -260,6 +278,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             /* Make a temporary buffer */
             char *link = new char[bufSize];
 
+            DPRINTF(gem5fs, "gem5fs: reading link on %s\n", pathname);
+
             /* Call readlink with this size */ 
             int rv = ::readlink(pathname, link, bufSize-1);
             if (rv >= 0)
@@ -272,6 +292,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
         }
         case Unlink:
         {
+            DPRINTF(gem5fs, "gem5fs: unlinking %s\n", pathname);
+
             /* No input data. */
             int rv = ::unlink(pathname);
 
@@ -302,6 +324,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             char *newpath = new char[fileOp.structSize+1];
             CopyOut(tc, newpath, inputAddr, fileOp.structSize+1);
 
+            DPRINTF(gem5fs, "gem5fs: renaming %s to %s\n", pathname, newpath);
+
             int rv = ::rename(pathname, newpath);
 
             SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
@@ -315,6 +339,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             /* FUSE FS sends the newsize as input. */
             off_t length;
             CopyOut(tc, &length, inputAddr, fileOp.structSize);
+
+            DPRINTF(gem5fs, "gem5fs: truncating %s\n", pathname);
 
             int rv = ::truncate(pathname, length);
 
@@ -330,6 +356,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
 
             /* Create a pointer to the file descriptor. */
             int *fd = new int;
+
+            DPRINTF(gem5fs, "gem5fs: opening %s\n", pathname);
 
             *fd = open(pathname, flags);
 
@@ -394,6 +422,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             int fd;
             CopyOut(tc, &fd, inputAddr, fileOp.structSize);
 
+            DPRINTF(gem5fs, "gem5fs: closing %s\n", pathname);
+
             int rv = close(fd);
 
             DPRINTF(gem5fs, "gem5fs: close on fd %d returned %d\n", fd, rv);
@@ -408,6 +438,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             /* FUSE FS sends SyncOperation struct as input. */
             struct SyncOperation syncOp;
             CopyOut(tc, &syncOp, inputAddr, fileOp.structSize);
+
+            DPRINTF(gem5fs, "gem5fs: syncing %s\n", pathname);
 
             int rv;
             if (syncOp.datasync == 1)
@@ -432,6 +464,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
 
             CopyOut(tc, name, (Addr)xattrOp.name, xattrOp.name_size+1);
             CopyOut(tc, value, (Addr)xattrOp.value, xattrOp.value_size+1);
+
+            DPRINTF(gem5fs, "gem5fs: setting xattr on %s\n", pathname);
 
             /*
              *  This will set the attribute on the symlink itself
@@ -459,6 +493,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             char *name = new char[xattrOp.name_size+1];
             CopyOut(tc, name, (Addr)xattrOp.name, xattrOp.name_size+1);
 
+            DPRINTF(gem5fs, "gem5fs: getting xattr on %s\n", pathname);
+
             /* Create a temporary buffer for the value. */
             char *value = new char[xattrOp.value_size+1];
             ssize_t rv = ::lgetxattr(pathname, name, value, xattrOp.value_size);
@@ -479,6 +515,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             /* FUSE FS sends XAttrOperation as input. */
             struct XAttrOperation xattrOp;
             CopyOut(tc, &xattrOp, inputAddr, fileOp.structSize);
+
+            DPRINTF(gem5fs, "gem5fs: listing xattr on %s\n", pathname);
 
             /* Create a temporary buffer for the list. */
             char *list = new char[xattrOp.value_size+1];
@@ -504,6 +542,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             char *name = new char[xattrOp.name_size+1];
             CopyOut(tc, name, (Addr)xattrOp.name, xattrOp.name_size+1);
 
+            DPRINTF(gem5fs, "gem5fs: removing xattr on %s\n", pathname);
+
             int rv = ::lremovexattr(pathname, name);
 
             /* Success if rv == 0. */
@@ -528,6 +568,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
              */
             DIR *dirp = opendir(pathname);
             struct dirent *de;
+
+            DPRINTF(gem5fs, "gem5fs: reading directory %s\n", pathname);
 
             /*
              * readdir returns a non-null pointer on success. On failure, NULL
@@ -574,7 +616,7 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             mode_t dirMode;
             CopyOut(tc, &dirMode, inputAddr, fileOp.structSize);
 
-            DPRINTF(gem5fs, "gem5fs: Making directory with mode %d (%X)\n", dirMode, dirMode);
+            DPRINTF(gem5fs, "gem5fs: Making directory %s with mode %d (%X)\n", pathname, dirMode, dirMode);
 
             /* Call mkdir */ 
             int rv = ::mkdir(pathname, dirMode);
@@ -586,6 +628,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
         }
         case RemoveDirectory:
         {
+            DPRINTF(gem5fs, "gem5fs: removing directory %s\n", pathname);
+
             /* Returns 0 on success. */
             int rv = ::rmdir(pathname);
 
@@ -616,6 +660,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             struct ChownOperation chownOp;
             CopyOut(tc, &chownOp, inputAddr, fileOp.structSize);
 
+            DPRINTF(gem5fs, "gem5fs: changing owner of %s\n", pathname);
+
             /* Success if rv == 0 */
             int rv = ::chown(pathname, chownOp.uid, chownOp.gid);
 
@@ -629,6 +675,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             /* FUSE FS sends mask as input. */
             int mask;
             CopyOut(tc, &mask, inputAddr, fileOp.structSize);
+
+            DPRINTF(gem5fs, "gem5fs: accessing %s\n", pathname);
 
             /* Call access */
             int rv = ::access(pathname, mask);
@@ -647,6 +695,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             /* Create a pointer to the file descriptor. */
             int *fd = new int;
 
+            DPRINTF(gem5fs, "gem5fs: creating %s\n", pathname);
+
             /* Call creat */
             *fd = ::creat(pathname, mode);
 
@@ -662,6 +712,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             struct ftruncOperation ftOp;
             CopyOut(tc, &ftOp, inputAddr, fileOp.structSize);
 
+            DPRINTF(gem5fs, "gem5fs: ftruncating %s\n", pathname);
+
             int rv = ::ftruncate(ftOp.fd, ftOp.length);
 
             /* Success if rv >= 0 */
@@ -675,6 +727,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             int fd;
             CopyOut(tc, &fd, inputAddr, fileOp.structSize);
 
+            DPRINTF(gem5fs, "gem5fs: getting attributes on %s fd\n", pathname);
+
             struct stat *statbuf = new struct stat;
             int rv = ::fstat(fd, statbuf);
 
@@ -684,6 +738,8 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
         }
         default:
         {
+            DPRINTF(gem5fs, "gem5fs: unknown operation on %s\n", pathname);
+
             break;
         }
     }

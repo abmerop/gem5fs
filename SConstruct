@@ -77,6 +77,13 @@ except KeyError:
     print "M5_PATH is not set. Please set the path to gem5 in your environment variables."
     sys.exit(1)
 
+#
+# Override C compiler is specified
+#
+try:
+    env['CC'] = os.environ['CC']
+except:
+    pass
 
 #
 #  Set fuse flags.
@@ -98,6 +105,12 @@ else:
 #
 env.Append(CFLAGS=("-I%s" % env.root))
 
+#
+# For X86, prefer mmapped operations
+#
+if env['ARCH'] == "x86":
+    env.Append(CFLAGS="-DM5OP_ADDR=0xFFFF0000")
+
 Export('env')
 
 #
@@ -118,12 +131,24 @@ fuse_src_list = []
 fuse_prog_name = "gem5fs"
 
 #
-# Sources added with FuseSource will not build with gem5, but will
+# List of sources for the test programs
+#
+test_src_list = []
+
+#
+# Sources added with FuseSource will not built with gem5, but will
 # be built with the FUSE executable
 #
 def FuseSource(src):
     fuse_src_list.append(File(src))
 Export('FuseSource')
+
+#
+# Sources added with TestSource will not be built with gem5 or FUSE.
+#
+def TestSource(src):
+    test_src_list.append(src)
+Export('TestSource')
 
 #
 # Setup our variant directory
@@ -135,4 +160,17 @@ SConscript('SConscript', variant_dir=build_dir)
 # It's tool time.
 #
 env.Program(fuse_prog_name, fuse_src_list)
+
+#
+# Each source in the test list has it's own executable
+#
+for test in test_src_list:
+    test_dir = test.split('/')
+    test_exec = test_dir[len(test_dir)-1]
+    test_exec = test_exec.split('.')[0] # Remove .c extension
+    test_files = []
+    test_files.append(File(test))
+    test_files.append('%s/util/m5/m5op_%s.S' % (env.root, env['ARCH']))
+    env.Program(test_exec, test_files)
+
 

@@ -101,7 +101,7 @@ The FUSE API provides over 40 different types of file operations (i.e., `read()`
 
 Some operations may have undefined behavior if they operate outside of the gem5 disk image. These operations are `mknod`, `link`, `ioctl`, and `lock`. 
 
- * `mknod` - This is normal used to create non-standard types of files, such as character devices. This is currently not allow from within gem5.
+ * `mknod` - This is normally used to create non-standard types of files, such as character devices. This is currently not allow from within gem5.
  * `link` - This creates a hardlink. It is not clear what will happen if a hardlink between a file on the gem5 disk image and the host is created and gem5 exits.
  * `lock` - Similar to link, it is not clear what will happen if a file outside of gem5 is locked and gem5 exits.
  * `ioctl` - This is normally used to control register devices, which will not be supported on the host from within gem5.
@@ -129,8 +129,7 @@ After gem5fs is mounted, additional tools are provided to ensure that individual
 
  * test_mkdir - This tests `mkdir`, `rmdir`, `chmod`, `chown`, and `lstat`
  * test_file - This tests `open`, `read`, `write`, `close`, `unlink`, `truncate`, `ftrunacte`, `access`, and `create`
- * test_xattr - This tests `lsetxattr`, `lgetxattr`, `llistxattr`, and `lremovexattr`
- * test_link - This tests `readlink`, and `symlink`
+ * test_link - This tests `readlink`, `unlink`, and `symlink`
  * test_dir - This tests `opendir`, `readdir`, `readdir_r`, and `closedir`
 
 Untested Operations

@@ -111,7 +111,9 @@ typedef enum
     Create,
     Ftruncate,
     FGetAttr,
-    GetResult
+    GetResult,
+    SetMountpoint,
+    GetMountpoint
 } Operation;
 
 typedef enum 
