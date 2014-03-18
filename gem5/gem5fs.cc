@@ -459,10 +459,10 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             CopyOut(tc, &xattrOp, inputAddr, fileOp.structSize);
 
             /* Copy out the name and value as well. */
-            char *name = new char[xattrOp.name_size+1];
+            char *xname = new char[xattrOp.name_size+1];
             char *value = new char[xattrOp.value_size+1];
 
-            CopyOut(tc, name, (Addr)xattrOp.name, xattrOp.name_size+1);
+            CopyOut(tc, xname, (Addr)xattrOp.name, xattrOp.name_size+1);
             CopyOut(tc, value, (Addr)xattrOp.value, xattrOp.value_size+1);
 
             DPRINTF(gem5fs, "gem5fs: setting xattr on %s\n", pathname);
@@ -473,12 +473,12 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
              *  an interface for the user to specify which, so we
              *  will always use lsetxattr over setxattr.
              */
-            ssize_t rv = ::lsetxattr(pathname, name, value, xattrOp.value_size, xattrOp.flags);
+            ssize_t rv = ::lsetxattr(pathname, xname, value, xattrOp.value_size, xattrOp.flags);
 
             /* Success if rv == 0. */
             SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
 
-            delete name;
+            delete xname;
             delete value;
 
             break;
@@ -490,14 +490,14 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             CopyOut(tc, &xattrOp, inputAddr, fileOp.structSize);
 
             /* Copy out the name of the attribute. */
-            char *name = new char[xattrOp.name_size+1];
-            CopyOut(tc, name, (Addr)xattrOp.name, xattrOp.name_size+1);
+            char *xname = new char[xattrOp.name_size+1];
+            CopyOut(tc, xname, (Addr)xattrOp.name, xattrOp.name_size+1);
 
             DPRINTF(gem5fs, "gem5fs: getting xattr on %s\n", pathname);
 
             /* Create a temporary buffer for the value. */
             char *value = new char[xattrOp.value_size+1];
-            ssize_t rv = ::lgetxattr(pathname, name, value, xattrOp.value_size);
+            ssize_t rv = ::lgetxattr(pathname, xname, value, xattrOp.value_size);
 
             /* Success if rv >= 0. */
             if (rv >= 0)
@@ -505,7 +505,7 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
 
             SendResponse(tc, resultAddr, &fileOp, (rv >= 0), NULL, 0);
 
-            delete name;
+            delete xname;
             delete value;
 
             break;
@@ -539,17 +539,17 @@ uint64_t gem5fs::ProcessRequest(ThreadContext *tc, Addr inputAddr, Addr requestA
             CopyOut(tc, &xattrOp, inputAddr, fileOp.structSize);
 
             /* Copy out the name of the attribute to delete. */
-            char *name = new char[xattrOp.name_size+1];
-            CopyOut(tc, name, (Addr)xattrOp.name, xattrOp.name_size+1);
+            char *xname = new char[xattrOp.name_size+1];
+            CopyOut(tc, xname, (Addr)xattrOp.name, xattrOp.name_size+1);
 
             DPRINTF(gem5fs, "gem5fs: removing xattr on %s\n", pathname);
 
-            int rv = ::lremovexattr(pathname, name);
+            int rv = ::lremovexattr(pathname, xname);
 
             /* Success if rv == 0. */
             SendResponse(tc, resultAddr, &fileOp, (rv == 0), NULL, 0);
 
-            delete name;
+            delete xname;
 
             break;
         }
